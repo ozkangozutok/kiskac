@@ -15,6 +15,21 @@ namespace Kiskac
                 return 0;
             }
 
+            // CI'da çalışan iç denetimler (GitHub Actions, windows.yml)
+            if (args.Length == 2 && args[0] == "--selftest")
+                return SelfTest.Run(args[1]);
+
+            // Güncellemeden sonra: eski süreç kapanana kadar bekle, artıkları temizle.
+            bool justUpdated = false;
+            int oldPid;
+            if (args.Length == 2 && args[0] == "--after-update" && int.TryParse(args[1], out oldPid))
+            {
+                Updater.FinishUpdate(oldPid);
+                justUpdated = true;
+            }
+            else
+                Updater.CleanupLeftovers();
+
             bool created;
             using (var mutex = new Mutex(true, "Kiskac_SingleInstance", out created))
             {
@@ -31,7 +46,7 @@ namespace Kiskac
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.ThreadException += (s, e) =>
                     MessageBox.Show(e.Exception.ToString(), "Kıskaç hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Application.Run(new TrayContext());
+                Application.Run(new TrayContext(justUpdated));
             }
             return 0;
         }

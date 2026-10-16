@@ -60,6 +60,13 @@ namespace Kiskac
         public static extern bool DestroyIcon(IntPtr hIcon);
 
         [DllImport("user32.dll")]
+        public static extern uint MapVirtualKey(uint code, uint mapType);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int ToUnicode(uint vk, uint scan, byte[] state,
+            [Out, MarshalAs(UnmanagedType.LPWStr)] System.Text.StringBuilder buf, int bufSize, uint flags);
+
+        [DllImport("user32.dll")]
         static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll")]

@@ -4,5 +4,4 @@ using System.Reflection;
 [assembly: AssemblyTitle("Kıskaç")]
 [assembly: AssemblyProduct("Kıskaç")]
 [assembly: AssemblyDescription("Kıskaç — PrtSc ile ekran görüntüsü")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+// Sürüm kökteki VERSION dosyasından derleme sırasında üretilir (build.ps1 → bin/Version.cs).

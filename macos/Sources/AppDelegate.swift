@@ -150,6 +150,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func startCapture() {
+        // Bir uyarı penceresi açıkken seçim ekranı onun üstünde açılıp girdiyi kilitlerdi.
+        if let modal = NSApp.modalWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            modal.makeKeyAndOrderFront(nil)
+            return
+        }
         if let s = session {
             s.bringToFront()
             return

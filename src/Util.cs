@@ -62,7 +62,7 @@ namespace Kiskac
                 var codec = Array.Find(ImageCodecInfo.GetImageEncoders(), c => c.FormatID == ImageFormat.Jpeg.Guid);
                 using (var ps = new EncoderParameters(1))
                 {
-                    ps.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 92L);
+                    ps.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, (long)Settings.JpegQuality);
                     bmp.Save(path, codec, ps);
                 }
             }
@@ -129,6 +129,7 @@ namespace Kiskac
         }
     }
 
+    // Tüm ayarlar HKCU\Software\Kiskac altında tutulur.
     static class Settings
     {
         const string Key = @"Software\Kiskac";
@@ -143,6 +144,23 @@ namespace Kiskac
         {
             using (var k = Registry.CurrentUser.CreateSubKey(Key))
                 k.SetValue(name, value);
+        }
+
+        static int GetInt(string name, int def)
+        {
+            var v = Get(name);
+            return v is int ? (int)v : def;
+        }
+
+        static bool GetBool(string name, bool def)
+        {
+            var v = Get(name);
+            return v is int ? (int)v != 0 : def;
+        }
+
+        static void SetBool(string name, bool value)
+        {
+            Set(name, value ? 1 : 0);
         }
 
         public static string SaveDir
@@ -164,6 +182,64 @@ namespace Kiskac
         {
             get { return Get("Initialized") != null; }
             set { Set("Initialized", 1); }
+        }
+
+        public static HotKey HotKey
+        {
+            get { return HotKey.Parse(Get("HotKey") as string); }
+            set { Set("HotKey", value.ToString()); }
+        }
+
+        // 15–75 (yüzde)
+        public static int DimPercent
+        {
+            get { return Math.Max(15, Math.Min(75, GetInt("DimPercent", 45))); }
+            set { Set("DimPercent", value); }
+        }
+
+        public static bool ShowHint { get { return GetBool("ShowHint", true); } set { SetBool("ShowHint", value); } }
+        public static bool RememberStyle { get { return GetBool("RememberStyle", true); } set { SetBool("RememberStyle", value); } }
+        public static int LastColor { get { return GetInt("LastColor", 0); } set { Set("LastColor", value); } }
+        public static int LastWidth { get { return GetInt("LastWidth", 3); } set { Set("LastWidth", value); } }
+
+        // 0: PNG, 1: JPEG, 2: BMP
+        public static int Format
+        {
+            get { return Math.Max(0, Math.Min(2, GetInt("Format", 0))); }
+            set { Set("Format", value); }
+        }
+
+        public static string FormatExtension
+        {
+            get { return Format == 1 ? ".jpg" : Format == 2 ? ".bmp" : ".png"; }
+        }
+
+        // 50–100
+        public static int JpegQuality
+        {
+            get { return Math.Max(50, Math.Min(100, GetInt("JpegQuality", 92))); }
+            set { Set("JpegQuality", value); }
+        }
+
+        public static bool QuickSave { get { return GetBool("QuickSave", false); } set { SetBool("QuickSave", value); } }
+        public static bool CopyAfterSave { get { return GetBool("CopyAfterSave", false); } set { SetBool("CopyAfterSave", value); } }
+        public static bool AutoUpdate { get { return GetBool("AutoUpdate", true); } set { SetBool("AutoUpdate", value); } }
+
+        public static DateTime LastUpdateCheck
+        {
+            get
+            {
+                long t;
+                var v = Get("LastUpdateCheck") as string;
+                return v != null && long.TryParse(v, out t) ? DateTime.FromBinary(t) : DateTime.MinValue;
+            }
+            set { Set("LastUpdateCheck", value.ToBinary().ToString()); }
+        }
+
+        public static string SkippedVersion
+        {
+            get { return Get("SkippedVersion") as string; }
+            set { Set("SkippedVersion", value ?? ""); }
         }
     }
 

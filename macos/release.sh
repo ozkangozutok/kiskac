@@ -15,12 +15,12 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(dirname "$here")"
 profile="${NOTARY_PROFILE:-kiskac-notary}"
-version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$here/Info.plist")"
+version="$(tr -d '[:space:]' < "$root/VERSION")"
 tag="v$version"
 notes="${1:-}"
 
 if git -C "$root" rev-parse -q --verify "refs/tags/$tag" >/dev/null || gh release view "$tag" >/dev/null 2>&1; then
-    echo "$tag zaten var. Önce macos/Info.plist içindeki CFBundleShortVersionString değerini artır." >&2
+    echo "$tag zaten var. Önce kökteki VERSION dosyasını artır." >&2
     exit 1
 fi
 if [ -n "$(git -C "$root" status --porcelain)" ]; then
@@ -54,21 +54,15 @@ if [ "$notarize" = 1 ]; then
 fi
 ditto -c -k --keepParent "$root/bin/Kiskac.app" "$zip"
 
-# Windows sürümü macOS'ta derlenemez; en son sürümdeki Kiskac.exe yeni sürüme de eklenir.
+# Kiskac.exe'yi sürüm yayınlanınca GitHub Actions (.github/workflows/windows.yml) derleyip ekler.
 assets=("$zip")
-if [ -f "$root/bin/Kiskac.exe" ]; then
-    cp "$root/bin/Kiskac.exe" "$out/"
-    assets+=("$out/Kiskac.exe")
-elif gh release download -p Kiskac.exe -D "$out" >/dev/null 2>&1; then
-    assets+=("$out/Kiskac.exe")
-fi
 
 if [ -z "$notes" ]; then
     notes="$out/notes.md"
     {
         echo "Kıskaç $version"
         echo
-        echo "macOS'ta Kıskaç kendini otomatik günceller (menü › Güncellemeleri denetle…)."
+        echo "Kıskaç kendini otomatik günceller (menü › Güncellemeleri denetle…). Kiskac.exe birkaç dakika içinde GitHub Actions tarafından eklenir."
         echo
         for f in "${assets[@]}"; do
             echo "**SHA256 ($(basename "$f")):** \`$(shasum -a 256 "$f" | cut -d' ' -f1)\`"

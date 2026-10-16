@@ -23,12 +23,14 @@ Kıskaç, Lightshot benzeri bir ekran görüntüsü aracıdır. Windows'ta tek b
 - **Kopyala veya kaydet:** panoya kopyalayabilir ya da PNG, JPG veya BMP olarak kaydedebilirsin.
 - **Sistem tepsisi ve otomatik başlatma:** Windows açılınca kendiliğinden başlar (tepsi menüsünden kapatılabilir).
 - **Diğer kısayollar korunur:** Alt+PrtSc ve Win+PrtSc Windows'ta eskisi gibi çalışır.
+- **Ayarlar:** kısayol, karartma, kayıt biçimi ve klasörü, sormadan kaydetme ve daha fazlası.
+- **Otomatik güncelleme:** yeni sürümler GitHub Releases'tan indirilir, doğrulanır ve kurulur.
 
 ## Kısayollar (Windows)
 
 | Tuş | İşlev |
 |---|---|
-| `PrtSc` | Ekran görüntüsü al |
+| `PrtSc` | Ekran görüntüsü al (Ayarlar'dan değiştirilebilir) |
 | `Ctrl+C` / `Enter` / çift tık | Panoya kopyala ve kapat |
 | `Ctrl+S` | Dosyaya kaydet |
 | `Ctrl+Z` | Geri al |
@@ -44,7 +46,27 @@ Ek bir şey kurman gerekmez. Windows 10 ve 11 ile gelen .NET Framework 4.8 C# de
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-Çıktı `bin\Kiskac.exe` olarak oluşur. Uygulama simgesi derleme sırasında koddan ([src/Logo.cs](src/Logo.cs)) üretilir.
+Çıktı `bin\Kiskac.exe` olarak oluşur. Uygulama simgesi derleme sırasında koddan ([src/Logo.cs](src/Logo.cs)) üretilir. Sürüm numarası kökteki [VERSION](VERSION) dosyasından alınır (macOS ile ortak).
+
+GitHub'da her push'ta Windows derlemesi [GitHub Actions](.github/workflows/windows.yml) ile denetlenir. Bir sürüm yayınlanınca `Kiskac.exe` orada derlenip sürüme eklenir.
+
+### Ayarlar (Windows)
+
+Tepsi simgesine sağ tıklayıp **Ayarlar…** ile açılır:
+
+| Bölüm | Ayar |
+|---|---|
+| Kısayol | Ekran görüntüsü kısayolunu kaydet: düğmeye tıkla, yeni tuşlara bas (PrtSc de kaydedilebilir) |
+| Genel | Windows açılınca başlat |
+| Seçim ekranı | Karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama |
+| Kaydetme ve kopyalama | Kayıt klasörü, varsayılan biçim (PNG/JPEG/BMP) ve JPEG kalitesi, `Ctrl+S` ile sormadan kaydetme, kaydettikten sonra panoya da kopyalama |
+| Güncelleme | Sürüm, şimdi denetle, otomatik denetim |
+
+Kısayolda Ctrl olmalı (PrtSc, F tuşları, Pause ve Scroll Lock tek başına da olur). Win tuşlu kısayollar, Ctrl+C/V gibi standart kısayollar ve AltGr ile karakter yazan birleşimler (Türkçe klavyede Ctrl+Alt+Q = @ gibi) seçilemez.
+
+### Güncelleme (Windows)
+
+Kıskaç yeni sürümleri GitHub Releases'tan kendisi denetler (açılıştan kısa süre sonra, günde en fazla bir kez). Tepsi menüsünden **Güncellemeleri denetle…** ile elle de denetlenebilir. Güncellemede `Kiskac.exe` exe'nin yanına indirilir, SHA256 özeti ve sürümü doğrulanır, çalışan exe yeniden adlandırılıp yenisi yerine konur ve Kıskaç yeniden açılır. Exe'nin bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
 
 ## macOS
 
@@ -108,7 +130,7 @@ Uygulamanın bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
 
 #### Sürüm yayınlama
 
-1. `macos/Info.plist` içindeki `CFBundleShortVersionString` değerini artır ve commit et.
+1. Kökteki `VERSION` dosyasını artır ve commit et.
 2. İsteğe bağlı: notarize için notarytool profilini bir kez oluştur. Profil yoksa notarize atlanır; o zaman ilk elle kurulumda Gatekeeper uyarısı çıkar, uygulama içi güncellemeler etkilenmez. Komut uygulamaya özel parolayı sorar ([appleid.apple.com](https://appleid.apple.com) › Oturum Açma ve Güvenlik):
    ```sh
    xcrun notarytool store-credentials kiskac-notary --apple-id <apple-id> --team-id XZPCTAZZ9W
@@ -117,7 +139,7 @@ Uygulamanın bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
    ```sh
    ./macos/release.sh [sürüm-notları.md]
    ```
-   Betik Developer ID ile imzalar, profil varsa notarize edip zımbalar (staple), `Kiskac-macOS.zip` dosyasını üretir ve `vX.Y.Z` GitHub sürümünü oluşturur. Son sürümdeki `Kiskac.exe` de yeni sürüme eklenir.
+   Betik Developer ID ile imzalar, profil varsa notarize edip zımbalar (staple), `Kiskac-macOS.zip` dosyasını üretir ve `vX.Y.Z` GitHub sürümünü oluşturur. `Kiskac.exe` birkaç dakika içinde GitHub Actions tarafından sürüme eklenir.
 
 ### Ekran kaydı izni
 
@@ -131,10 +153,13 @@ Yayınlanan sürümler Developer ID ile imzalı olduğundan izin güncellemelerd
 |---|---|
 | `src/Program.cs` | Giriş noktası, tek örnek kontrolü |
 | `src/TrayContext.cs` | Tepsi simgesi, menü, çekimi başlatma |
-| `src/KeyboardHook.cs` | Sistem genelinde PrtSc yakalama (ayrı iş parçacığında) |
+| `src/KeyboardHook.cs` | Sistem genelinde kısayol yakalama ve kısayol kaydı (ayrı iş parçacığında) |
 | `src/OverlayForm.cs` | Seçim ekranı, araç çubuğu, çizim ve kaydetme |
 | `src/Shapes.cs` | Kalem, çizgi, ok, dikdörtgen, metin şekilleri |
 | `src/Logo.cs` | Kodla çizilen logo |
+| `src/HotKey.cs` | Kısayol modeli, doğrulama ve tuş adları |
+| `src/SettingsForm.cs` | Ayarlar penceresi |
+| `src/Updater.cs` | GitHub Releases ile otomatik güncelleme |
 | `macos/Sources/AppDelegate.swift` | macOS: menü çubuğu, kısayol, izinler |
 | `macos/Sources/SettingsWindow.swift` | macOS: ayarlar penceresi ve kısayol kaydı |
 | `macos/Sources/HotKeys.swift` | macOS: sistem geneli kısayol ve tuş adları |

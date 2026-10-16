@@ -26,6 +26,9 @@ for arch in $archs; do
 done
 lipo -create -output "$app/Contents/MacOS/Kiskac" "${bins[@]}"
 cp "$here/Info.plist" "$app/Contents/Info.plist"
+# Sürüm kökteki VERSION dosyasından gelir (Windows derlemesiyle ortak).
+version="$(tr -d '[:space:]' < "$root/VERSION")"
+/usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $version" -c "Set CFBundleVersion $version" "$app/Contents/Info.plist"
 
 # Uygulama simgesi koddan (Sources/Logo.swift) üretilir.
 "$app/Contents/MacOS/Kiskac" --export-iconset "$tmp/Kiskac.iconset"

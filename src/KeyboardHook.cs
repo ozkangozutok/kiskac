@@ -4,21 +4,39 @@ using System.Threading;
 
 namespace Kiskac
 {
-    // PrtSc tuşunu sistem genelinde yakalar. Kanca kendi iş parçacığında çalışır;
+    // Ekran görüntüsü kısayolunu sistem genelinde yakalar. Kanca kendi iş parçacığında çalışır;
     // böylece arayüz meşgulken bile klavye gecikmez ve Windows kancayı düşürmez.
     sealed class KeyboardHook : IDisposable
     {
-        readonly Action onPrintScreen;
+        readonly Action onHotKey;
         readonly Native.LowLevelKeyboardProc proc;
         readonly Thread thread;
         IntPtr hook;
         uint threadId;
+        volatile object hotKey; // kutulanmış HotKey: kanca iş parçacığı kilitsiz okur
+        volatile Action<HotKey> recorder;
+        bool pressed;
 
         public bool Installed { get; private set; }
 
-        public KeyboardHook(Action onPrintScreen)
+        public HotKey HotKey
         {
-            this.onPrintScreen = onPrintScreen;
+            get { return (HotKey)hotKey; }
+            set { hotKey = value; }
+        }
+
+        // Ayarlar penceresi kısayol kaydederken: değiştirici olmayan ilk tuş buraya gelir ve yutulur.
+        // Çağrı kanca iş parçacığındadır.
+        public Action<HotKey> Recorder
+        {
+            get { return recorder; }
+            set { recorder = value; }
+        }
+
+        public KeyboardHook(HotKey key, Action onHotKey)
+        {
+            hotKey = key;
+            this.onHotKey = onHotKey;
             proc = Callback;
             var ready = new ManualResetEvent(false);
             thread = new Thread(() =>
@@ -47,26 +65,44 @@ namespace Kiskac
             if (nCode >= 0)
             {
                 int vk = Marshal.ReadInt32(lParam);
-                // Alt+PrtSc, Win+PrtSc gibi kombinasyonlar Windows'a bırakılır.
-                if (vk == Native.VK_SNAPSHOT && !ModifierDown())
+                int msg = wParam.ToInt32();
+                bool down = msg == Native.WM_KEYDOWN || msg == Native.WM_SYSKEYDOWN;
+
+                var rec = recorder;
+                if (rec != null)
                 {
-                    int msg = wParam.ToInt32();
-                    if (msg == Native.WM_KEYDOWN || msg == Native.WM_SYSKEYDOWN)
+                    if (HotKey.IsModifierKey(vk)) return Native.CallNextHookEx(hook, nCode, wParam, lParam);
+                    if (down)
                     {
-                        Util.Log("PrtSc yakalandı");
-                        try { onPrintScreen(); }
+                        try { rec(new HotKey(vk, HotKey.CurrentMods())); }
                         catch { }
                     }
-                    return (IntPtr)1; // tuşu yut: Ekran Alıntısı Aracı / Lightshot tetiklenmesin
+                    return (IntPtr)1;
+                }
+
+                var hk = (HotKey)hotKey;
+                if (vk == hk.Vk)
+                {
+                    // Değiştiriciler birebir tutmalı: PrtSc seçiliyken Alt+PrtSc, Win+PrtSc Windows'a kalır.
+                    if (down && HotKey.CurrentMods() == hk.Mods)
+                    {
+                        if (!pressed)
+                        {
+                            pressed = true; // basılı tutunca tekrar tekrar tetiklenmesin
+                            Util.Log("Kısayol yakalandı: " + hk.Display);
+                            try { onHotKey(); }
+                            catch { }
+                        }
+                        return (IntPtr)1; // tuşu yut: Ekran Alıntısı Aracı vb. tetiklenmesin
+                    }
+                    if (!down && pressed)
+                    {
+                        pressed = false;
+                        return (IntPtr)1;
+                    }
                 }
             }
             return Native.CallNextHookEx(hook, nCode, wParam, lParam);
-        }
-
-        static bool ModifierDown()
-        {
-            return Native.IsKeyDown(0x10) || Native.IsKeyDown(0x11) || Native.IsKeyDown(0x12)
-                || Native.IsKeyDown(0x5B) || Native.IsKeyDown(0x5C);
         }
 
         public void Dispose()

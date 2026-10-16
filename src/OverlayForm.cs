@@ -68,6 +68,11 @@ namespace Kiskac
             this.shot = shot;
             this.vbounds = vbounds;
             dimmed = MakeDimmed(shot);
+            if (Settings.RememberStyle)
+            {
+                colorIndex = Math.Max(0, Math.Min(Palette.Length - 1, Settings.LastColor));
+                penWidth = Math.Max(1, Math.Min(40, Settings.LastWidth));
+            }
 
             Text = "Kıskaç";
             FormBorderStyle = FormBorderStyle.None;
@@ -103,7 +108,7 @@ namespace Kiskac
                 g.CompositingMode = CompositingMode.SourceCopy;
                 g.DrawImage(src, all, all, GraphicsUnit.Pixel);
                 g.CompositingMode = CompositingMode.SourceOver;
-                using (var br = new SolidBrush(Color.FromArgb(115, 0, 0, 0)))
+                using (var br = new SolidBrush(Color.FromArgb(Settings.DimPercent * 255 / 100, 0, 0, 0)))
                     g.FillRectangle(br, all);
             }
             return b;
@@ -667,27 +672,45 @@ namespace Kiskac
         {
             if (!hasSel || sel.Width < 1 || sel.Height < 1) return;
             CommitText();
-            using (var dlg = new SaveFileDialog())
+            string baseName = "Kıskaç_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string path;
+            if (Settings.QuickSave)
             {
-                dlg.Title = "Ekran görüntüsünü kaydet";
-                dlg.Filter = "PNG resmi (*.png)|*.png|JPEG resmi (*.jpg)|*.jpg|BMP resmi (*.bmp)|*.bmp";
-                dlg.FileName = "Kıskaç_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".png";
-                dlg.InitialDirectory = Settings.SaveDir;
-                dlg.AddExtension = true;
-                dlg.OverwritePrompt = true;
-                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                // Sormadan kayıt klasörüne; aynı adlı dosya varsa numara eklenir.
+                string dir = Settings.SaveDir, ext = Settings.FormatExtension;
+                path = Path.Combine(dir, baseName + ext);
+                for (int n = 2; File.Exists(path); n++)
+                    path = Path.Combine(dir, baseName + " (" + n + ")" + ext);
+            }
+            else
+            {
+                using (var dlg = new SaveFileDialog())
+                {
+                    dlg.Title = "Ekran görüntüsünü kaydet";
+                    dlg.Filter = "PNG resmi (*.png)|*.png|JPEG resmi (*.jpg)|*.jpg|BMP resmi (*.bmp)|*.bmp";
+                    dlg.FilterIndex = Settings.Format + 1;
+                    dlg.FileName = baseName + Settings.FormatExtension;
+                    dlg.InitialDirectory = Settings.SaveDir;
+                    dlg.AddExtension = true;
+                    dlg.OverwritePrompt = true;
+                    if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                    path = dlg.FileName;
+                }
+            }
 
-                try
+            try
+            {
+                using (var b = RenderResult())
                 {
-                    using (var b = RenderResult())
-                        Util.SaveImage(b, dlg.FileName);
-                    Settings.SaveDir = Path.GetDirectoryName(dlg.FileName);
+                    Util.SaveImage(b, path);
+                    if (Settings.CopyAfterSave) Clipboard.SetDataObject(b, true, 10, 100);
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(this, "Kaydedilemedi: " + ex.Message, "Kıskaç", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                if (!Settings.QuickSave) Settings.SaveDir = Path.GetDirectoryName(path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Kaydedilemedi: " + ex.Message, "Kıskaç", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
             Close();
         }
@@ -770,6 +793,7 @@ namespace Kiskac
 
         void DrawHint(Graphics g)
         {
+            if (!Settings.ShowHint) return;
             DrawPill(g, HintRect(), 225, HintText, TextFormatFlags.Default);
         }
 
@@ -896,6 +920,16 @@ namespace Kiskac
                         break;
                 }
             }
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            if (Settings.RememberStyle)
+            {
+                Settings.LastColor = colorIndex;
+                Settings.LastWidth = (int)Math.Round(penWidth);
+            }
+            base.OnFormClosed(e);
         }
 
         protected override void Dispose(bool disposing)

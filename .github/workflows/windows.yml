@@ -1,0 +1,59 @@
+# Windows sürümü: her push'ta derlenir; bir GitHub sürümü yayınlanınca Kiskac.exe o sürüme eklenir.
+# Uygulama içi güncelleyici en son sürümdeki Kiskac.exe'yi indirir.
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "build.ps1", "app.manifest", "VERSION", ".github/workflows/windows.yml"]
+  pull_request:
+    paths: ["src/**", "build.ps1", "app.manifest", "VERSION"]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Kiskac.exe'nin ekleneceği sürüm etiketi (ör. v1.3.0)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+
+      - name: Derle
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: İç denetimler
+        shell: pwsh
+        run: |
+          $p = Start-Process bin/Kiskac.exe -ArgumentList '--selftest', "$PWD/selftest.log" -Wait -PassThru
+          Get-Content selftest.log
+          if ($p.ExitCode -ne 0) { throw "İç denetimler başarısız ($($p.ExitCode))" }
+
+      - name: Sürümü denetle
+        if: github.event_name == 'release' || inputs.tag != ''
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.release.tag_name || inputs.tag }}"
+          $v = (Get-Item bin/Kiskac.exe).VersionInfo.ProductVersion
+          if ("v$v" -ne $tag) { throw "Kiskac.exe sürümü ($v) etiketle ($tag) uyuşmuyor; VERSION dosyasını denetle." }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kiskac.exe
+          path: bin/Kiskac.exe
+
+      - name: Sürüme ekle
+        if: github.event_name == 'release' || inputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" bin/Kiskac.exe --clobber --repo "${{ github.repository }}"
