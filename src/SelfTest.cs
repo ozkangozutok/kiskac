@@ -30,6 +30,7 @@ namespace Kiskac
                 check("Ctrl+Shift+X geçerli", ctrlShiftX.Problem == null);
                 check("F13 geçerli", new HotKey(0x7C, Mods.None).Problem == null);
                 check("Ctrl+C engelli", new HotKey('C', Mods.Ctrl).Problem != null);
+                check("Ctrl+Shift+Z engelli", new HotKey('Z', Mods.Ctrl | Mods.Shift).Problem != null);
                 check("Win+S engelli", new HotKey('S', Mods.Win).Problem != null);
                 check("Alt+K engelli", new HotKey('K', Mods.Alt).Problem != null);
                 check("K engelli", new HotKey('K', Mods.None).Problem != null);

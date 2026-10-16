@@ -48,6 +48,9 @@ namespace Kiskac
             'A', 'C', 'V', 'X', 'Z', 'Y', 'S', 'F', 'N', 'O', 'P', 'W', 'T', 'Q', 'R', 0x09, 0x20
         };
 
+        // Ctrl+Shift ile yaygın olanlar: yinele, farklı kaydet, yeni pencere, kapalı sekmeyi aç…
+        static readonly int[] StandardCtrlShiftKeys = { 'Z', 'S', 'N', 'T', 'P', 'W', 0x09 };
+
         // Kısayol kullanılamıyorsa nedenini döner.
         public string Problem
         {
@@ -58,7 +61,8 @@ namespace Kiskac
                 if (IsStandalone) return null;
                 if ((Mods & Mods.Ctrl) == 0)
                     return "Ctrl ile birlikte bir tuşa bas. PrtSc ve F tuşları tek başına da olur.";
-                if ((Mods == Mods.Ctrl || Mods == (Mods.Ctrl | Mods.Shift)) && Array.IndexOf(StandardCtrlKeys, Vk) >= 0)
+                if ((Mods == Mods.Ctrl && Array.IndexOf(StandardCtrlKeys, Vk) >= 0)
+                    || (Mods == (Mods.Ctrl | Mods.Shift) && Array.IndexOf(StandardCtrlShiftKeys, Vk) >= 0))
                     return Display + " uygulamalarda standart bir kısayol, başka bir tane seç.";
                 if ((Mods & (Mods.Ctrl | Mods.Alt)) == (Mods.Ctrl | Mods.Alt) && (Vk == 0x2E || TypesAltGrCharacter()))
                     return Display + " bir karakter yazar (AltGr) ya da Windows'a ayrılmıştır, başka bir tane seç.";
