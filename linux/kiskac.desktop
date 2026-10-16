@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Kıskaç
+GenericName=Ekran görüntüsü aracı
+Comment=PrtSc'ye bas, alanı seç, üstüne çiz, kopyala
+Exec=kiskac
+Icon=kiskac
+Terminal=false
+Categories=Utility;Graphics;
+Keywords=screenshot;ekran;görüntü;capture;
+StartupNotify=false
+Actions=Capture;
+
+[Desktop Action Capture]
+Name=Ekran görüntüsü al
+Exec=kiskac --capture

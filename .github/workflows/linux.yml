@@ -1,0 +1,100 @@
+# Linux sürümü: her push'ta derlenip Xvfb altında iç denetimlerden geçer; bir GitHub sürümü
+# yayınlanınca Kiskac-x86_64.AppImage o sürüme eklenir. Uygulama içi güncelleyici bu dosyayı indirir.
+name: Linux
+
+on:
+  push:
+    branches: [main]
+    paths: ["linux/**", "VERSION", ".github/workflows/linux.yml"]
+  pull_request:
+    paths: ["linux/**", "VERSION"]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "AppImage'ın ekleneceği sürüm etiketi (ör. v1.4.0)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # En eski desteklenen Ubuntu: AppImage daha yeni dağıtımlarda da çalışır (glibc uyumluluğu).
+    runs-on: ubuntu-22.04
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+
+      - name: Bağımlılıklar
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build pkg-config \
+            qt6-base-dev qt6-base-dev-tools qt6-wayland libqt6svg6 qt6-qpa-plugins \
+            libxcb1-dev libxcb-keysyms1-dev libgl1-mesa-dev xvfb dbus-x11 file weston
+
+      - name: Derle
+        run: |
+          cmake -S linux -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+
+      - name: İç denetimler
+        run: xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- build/kiskac --selftest
+
+      - name: AppImage
+        run: |
+          DESTDIR=AppDir cmake --install build
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          build/kiskac --export-icon AppDir/usr/share/icons/hicolor/256x256/apps/kiskac.png -platform offscreen
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage appimagetool-x86_64.AppImage
+          export QMAKE=/usr/lib/qt6/bin/qmake
+          export EXTRA_PLATFORM_PLUGINS="libqwayland-generic.so;libqwayland-egl.so"
+          export EXTRA_QT_PLUGINS="wayland-shell-integration;wayland-decoration-client;wayland-graphics-integration-client"
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt \
+            -d linux/kiskac.desktop -i AppDir/usr/share/icons/hicolor/256x256/apps/kiskac.png
+          # X11 ve Wayland eklentileri pakete girmiş olmalı
+          for f in platforms/libqxcb.so platforms/libqwayland-generic.so wayland-shell-integration/libxdg-shell.so; do
+            find AppDir -path "*plugins/$f" | grep -q . || { echo "AppDir içinde eksik: $f"; exit 1; }
+          done
+          # appimagetool'un güncel çalışma zamanı statiktir: hedef sistemde libfuse2 gerekmez.
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir Kiskac-x86_64.AppImage
+          ls -la Kiskac-x86_64.AppImage
+
+      - name: AppImage iç denetimleri
+        run: |
+          ./Kiskac-x86_64.AppImage --version
+          xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- ./Kiskac-x86_64.AppImage --selftest
+
+      - name: AppImage iç denetimleri (Wayland)
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless-backend.so --socket=wayland-kiskac --width=1280 --height=800 &
+          for i in $(seq 1 50); do [ -S "$XDG_RUNTIME_DIR/wayland-kiskac" ] && break; sleep 0.2; done
+          WAYLAND_DISPLAY=wayland-kiskac QT_QPA_PLATFORM=wayland dbus-run-session -- ./Kiskac-x86_64.AppImage --selftest
+          kill %1 || true
+
+      - name: Sürümü denetle
+        if: github.event_name == 'release' || inputs.tag != ''
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          v="$(./Kiskac-x86_64.AppImage --version | awk '{print $NF}')"
+          [ "v$v" = "$tag" ] || { echo "AppImage sürümü ($v) etiketle ($tag) uyuşmuyor; VERSION dosyasını denetle."; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kiskac-x86_64.AppImage
+          path: Kiskac-x86_64.AppImage
+
+      - name: Sürüme ekle
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" Kiskac-x86_64.AppImage --clobber --repo "${{ github.repository }}"

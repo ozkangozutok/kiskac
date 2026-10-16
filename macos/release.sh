@@ -54,7 +54,7 @@ if [ "$notarize" = 1 ]; then
 fi
 ditto -c -k --keepParent "$root/bin/Kiskac.app" "$zip"
 
-# Kiskac.exe'yi sürüm yayınlanınca GitHub Actions (.github/workflows/windows.yml) derleyip ekler.
+# Kiskac.exe ve Kiskac-x86_64.AppImage'ı sürüm yayınlanınca GitHub Actions (windows.yml, linux.yml) derleyip ekler.
 assets=("$zip")
 
 if [ -z "$notes" ]; then
@@ -62,7 +62,7 @@ if [ -z "$notes" ]; then
     {
         echo "Kıskaç $version"
         echo
-        echo "Kıskaç kendini otomatik günceller (menü › Güncellemeleri denetle…). Kiskac.exe birkaç dakika içinde GitHub Actions tarafından eklenir."
+        echo "Kıskaç kendini otomatik günceller (menü › Güncellemeleri denetle…). Kiskac.exe ve Kiskac-x86_64.AppImage birkaç dakika içinde GitHub Actions tarafından eklenir."
         echo
         for f in "${assets[@]}"; do
             echo "**SHA256 ($(basename "$f")):** \`$(shasum -a 256 "$f" | cut -d' ' -f1)\`"

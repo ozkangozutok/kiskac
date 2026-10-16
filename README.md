@@ -5,12 +5,12 @@
 <h1 align="center">Kıskaç</h1>
 
 <p align="center">
-  Windows ve macOS için hafif, hızlı ekran görüntüsü aracı. <b>PrtSc</b> (macOS'ta <b>⇧⌘2</b>) bas, alanı seç, üstüne çiz, kopyala.
+  Windows, macOS ve Linux için hafif, hızlı ekran görüntüsü aracı. <b>PrtSc</b> (macOS'ta <b>⇧⌘2</b>) bas, alanı seç, üstüne çiz, kopyala.
 </p>
 
 ---
 
-Kıskaç, Lightshot benzeri bir ekran görüntüsü aracıdır. Windows'ta tek bir küçük `.exe` dosyasıdır, kurulum gerektirmez ve sistem tepsisinde sessizce çalışır. macOS'ta yerel (Swift + AppKit) bir menü çubuğu uygulamasıdır.
+Kıskaç, Lightshot benzeri bir ekran görüntüsü aracıdır. Windows'ta tek bir küçük `.exe` dosyasıdır, kurulum gerektirmez ve sistem tepsisinde sessizce çalışır. macOS'ta yerel (Swift + AppKit) bir menü çubuğu uygulamasıdır. Linux'ta (Qt 6) tek dosyalık bir AppImage olarak X11 ve Wayland'de çalışır.
 
 ## Özellikler
 
@@ -147,6 +147,39 @@ Uygulamanın bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
 
 Yayınlanan sürümler Developer ID ile imzalı olduğundan izin güncellemelerde korunur. `build.sh` ise yerelde varsayılan olarak ad-hoc imzalar: yeniden derlediğinde imza değişir, macOS da izni yeniden isteyebilir. Bu durumda listeden Kıskaç'ı kaldırıp yeniden ekle ya da sabit bir imzayla derle: `SIGN_IDENTITY="Apple Development: ..." ./macos/build.sh`.
 
+## Linux
+
+Linux sürümü C++ ve Qt 6 ile yazılmış yerel bir uygulamadır ([linux/](linux/)). Tek dosyalık **Kiskac-x86_64.AppImage** olarak dağıtılır; kurulum gerektirmez, X11 ve Wayland'de çalışır.
+
+```sh
+chmod +x Kiskac-x86_64.AppImage
+./Kiskac-x86_64.AppImage
+```
+
+- **Tepsi simgesi ve tek örnek:** Kıskaç arka planda çalışır. Yeniden açmak ya da `Kiskac-x86_64.AppImage --capture` ekran görüntüsü alır.
+- **Çekim:** X11'de her ekran doğrudan yakalanır. Wayland'de uygulamalar ekranı doğrudan okuyamaz; `xdg-desktop-portal` ekran görüntüsü arayüzü kullanılır (masaüstü ilk seferde izin isteyebilir).
+- **Akıcı seçim:** ekran görüntüsü ve karartılmış hali bir kez hazırlanır; fare hareketinde yalnızca değişen bölge yeniden çizilir. Yüksek DPI ve kesirli ölçeklemede tam piksel çözünürlüğünde kaydeder.
+- **Ayarlar ve otomatik güncelleme:** Windows ve macOS ile aynı seçenekler. AppImage kendini GitHub Releases'tan günceller (SHA256 ve sürüm doğrulamasıyla).
+
+### Kısayol (Linux)
+
+| Ortam | Nasıl çalışır |
+|---|---|
+| X11 (GNOME, KDE, Xfce, Cinnamon, MATE…) | Kıskaç kısayolu kendisi yakalar. PrtSc masaüstünün kendi ekran görüntüsü aracına atanmışsa Ayarlar'da uyarı çıkar: ya orada kaldır ya da başka bir kısayol seç. |
+| Wayland + genel kısayol portalı (KDE Plasma, GNOME 48+, Hyprland) | Kısayol masaüstüne kaydedilir; masaüstü ilk seferde onay ister. |
+| Diğer Wayland ortamları | Masaüstü ayarlarında (Klavye › Özel kısayollar) `Kiskac-x86_64.AppImage --capture` komutuna bir kısayol ata. Ayarlar penceresi tam komutu gösterir. |
+
+GNOME'da tepsi simgesi için *AppIndicator* desteği gerekir (Ubuntu'da hazır gelir; diğerlerinde "AppIndicator and KStatusNotifierItem Support" eklentisi).
+
+### Derleme (Linux)
+
+```sh
+sudo apt install build-essential cmake ninja-build qt6-base-dev libxcb1-dev libxcb-keysyms1-dev
+./linux/build.sh
+```
+
+Çıktı `bin/linux/kiskac` olarak oluşur. AppImage, [GitHub Actions](.github/workflows/linux.yml) ile Ubuntu 22.04 üzerinde derlenir ve her push'ta Xvfb altında iç denetimlerden geçer; bir sürüm yayınlanınca o sürüme eklenir.
+
 ## Proje yapısı
 
 | Dosya | Görevi |
@@ -165,6 +198,11 @@ Yayınlanan sürümler Developer ID ile imzalı olduğundan izin güncellemelerd
 | `macos/Sources/HotKeys.swift` | macOS: sistem geneli kısayol ve tuş adları |
 | `macos/Sources/Updater.swift` | macOS: GitHub Releases ile otomatik güncelleme |
 | `macos/release.sh` | macOS: imzalama, notarize ve GitHub sürümü yayınlama |
+| `linux/src/App.cpp` | Linux: tepsi, tek örnek, çekim akışı |
+| `linux/src/Capture.cpp` | Linux: X11 ve Wayland (portal) ekran yakalama |
+| `linux/src/GlobalHotKey.cpp` | Linux: X11 ve Wayland (portal) genel kısayol |
+| `linux/src/Overlay.cpp` | Linux: seçim ekranı, araç çubuğu, kopyalama ve kaydetme |
+| `linux/src/Updater.cpp` | Linux: AppImage otomatik güncelleme |
 | `macos/Sources/Capture.swift` | macOS: ScreenCaptureKit ile çoklu ekran çekimi |
 | `macos/Sources/Overlay.swift` | macOS: seçim ekranı, araç çubuğu, kopyalama ve kaydetme |
 | `macos/Sources/Shapes.swift` | macOS: çizim şekilleri |
