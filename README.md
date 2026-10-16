@@ -61,7 +61,7 @@ macOS sürümü ayrı ve tamamen yerel bir uygulamadır ([macos/](macos/)). Appl
 
 | Tuş | İşlev |
 |---|---|
-| `⇧⌘2` veya `F13` | Ekran görüntüsü al (PC klavyelerindeki PrtSc tuşu macOS'ta F13 olarak gelir) |
+| `⇧⌘2` veya `F13` | Ekran görüntüsü al (Ayarlar'dan değiştirilebilir; PC klavyelerindeki PrtSc tuşu macOS'ta F13 olarak gelir) |
 | `⌘C` / `↩` / çift tık | Panoya kopyala ve kapat |
 | `⌘S` | Dosyaya kaydet (PNG veya JPEG) |
 | `⌘Z` | Geri al |
@@ -70,6 +70,19 @@ macOS sürümü ayrı ve tamamen yerel bir uygulamadır ([macos/](macos/)). Appl
 | `⇧↩` | Metinde yeni satır |
 
 Kıskaç zaten çalışırken uygulamayı yeniden açmak (Spotlight, Finder) da ekran görüntüsü alır.
+
+### Ayarlar (macOS)
+
+Menü çubuğundaki Kıskaç simgesine tıklayıp **Ayarlar…** seçeneğiyle açılır:
+
+| Bölüm | Ayar |
+|---|---|
+| Kısayol | Ekran görüntüsü kısayolunu kaydet: düğmeye tıkla, yeni tuşlara bas. PrtSc (F13) tuşunu aç/kapat |
+| Genel | Oturum açılınca başlat, çekimde deklanşör sesi |
+| Seçim ekranı | Karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama |
+| Kaydetme ve kopyalama | Kayıt klasörü, varsayılan biçim (PNG/JPEG) ve JPEG kalitesi, `⌘S` ile sormadan kaydetme, kaydettikten sonra panoya da kopyalama, Retina görüntüyü 1x boyutuna küçültme |
+
+Kısayolda ⌘ veya ⌃ tuşlarından en az biri olmalı (F tuşları tek başına da olur). Etkin macOS sistem kısayolları (⇧⌘3/4/5, Spotlight vb.) ve ⌘C, ⌘V, ⌘Q gibi standart uygulama kısayolları seçilemez.
 
 ### Derleme (macOS)
 
@@ -81,11 +94,36 @@ Yalnızca Xcode Komut Satırı Araçları gerekir (`xcode-select --install`). Xc
 
 Çıktı `bin/Kiskac.app` olarak oluşur. **İlk açmadan önce Uygulamalar klasörüne taşı:** ilk açılışta oturum açılınca başlatma, uygulamanın o anki konumuna kaydedilir. Uygulama simgesi derleme sırasında koddan ([macos/Sources/Logo.swift](macos/Sources/Logo.swift)) üretilir.
 
+### Güncelleme (macOS)
+
+Kıskaç yeni sürümleri GitHub Releases'tan kendisi denetler: açılıştan kısa süre sonra ve günde en fazla bir kez. Menüden **Güncellemeleri denetle…** ile elle de denetlenebilir, otomatik denetim Ayarlar'dan kapatılabilir.
+
+Yeni sürüm bulununca sürüm notları gösterilir. **Şimdi güncelle** seçilirse `Kiskac-macOS.zip` indirilir, ardından:
+
+- SHA256 özeti GitHub'daki değerle karşılaştırılır,
+- paket kimliği, sürümü ve Developer ID imzası (aynı ekip) doğrulanır,
+- Kıskaç kapanınca eski uygulama yenisiyle değiştirilip yeniden açılır.
+
+Uygulamanın bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
+
+#### Sürüm yayınlama
+
+1. `macos/Info.plist` içindeki `CFBundleShortVersionString` değerini artır ve commit et.
+2. İsteğe bağlı: notarize için notarytool profilini bir kez oluştur. Profil yoksa notarize atlanır; o zaman ilk elle kurulumda Gatekeeper uyarısı çıkar, uygulama içi güncellemeler etkilenmez. Komut uygulamaya özel parolayı sorar ([appleid.apple.com](https://appleid.apple.com) › Oturum Açma ve Güvenlik):
+   ```sh
+   xcrun notarytool store-credentials kiskac-notary --apple-id <apple-id> --team-id XZPCTAZZ9W
+   ```
+3. Yayınla:
+   ```sh
+   ./macos/release.sh [sürüm-notları.md]
+   ```
+   Betik Developer ID ile imzalar, profil varsa notarize edip zımbalar (staple), `Kiskac-macOS.zip` dosyasını üretir ve `vX.Y.Z` GitHub sürümünü oluşturur. Son sürümdeki `Kiskac.exe` de yeni sürüme eklenir.
+
 ### Ekran kaydı izni
 
 İlk çekimde macOS, **Sistem Ayarları › Gizlilik ve Güvenlik › Ekran ve Sistem Sesi Kaydı** iznini ister. İzni verdikten sonra Kıskaç'ı yeniden başlatman gerekebilir.
 
-Betik uygulamayı yerel (ad-hoc) olarak imzalar. Yeniden derlediğinde imza değişir, macOS da izni yeniden isteyebilir. Bu durumda listeden Kıskaç'ı kaldırıp yeniden ekle. Sabit bir imza kullanmak için: `SIGN_IDENTITY="Apple Development: ..." ./macos/build.sh`.
+Yayınlanan sürümler Developer ID ile imzalı olduğundan izin güncellemelerde korunur. `build.sh` ise yerelde varsayılan olarak ad-hoc imzalar: yeniden derlediğinde imza değişir, macOS da izni yeniden isteyebilir. Bu durumda listeden Kıskaç'ı kaldırıp yeniden ekle ya da sabit bir imzayla derle: `SIGN_IDENTITY="Apple Development: ..." ./macos/build.sh`.
 
 ## Proje yapısı
 
@@ -98,6 +136,10 @@ Betik uygulamayı yerel (ad-hoc) olarak imzalar. Yeniden derlediğinde imza değ
 | `src/Shapes.cs` | Kalem, çizgi, ok, dikdörtgen, metin şekilleri |
 | `src/Logo.cs` | Kodla çizilen logo |
 | `macos/Sources/AppDelegate.swift` | macOS: menü çubuğu, kısayol, izinler |
+| `macos/Sources/SettingsWindow.swift` | macOS: ayarlar penceresi ve kısayol kaydı |
+| `macos/Sources/HotKeys.swift` | macOS: sistem geneli kısayol ve tuş adları |
+| `macos/Sources/Updater.swift` | macOS: GitHub Releases ile otomatik güncelleme |
+| `macos/release.sh` | macOS: imzalama, notarize ve GitHub sürümü yayınlama |
 | `macos/Sources/Capture.swift` | macOS: ScreenCaptureKit ile çoklu ekran çekimi |
 | `macos/Sources/Overlay.swift` | macOS: seçim ekranı, araç çubuğu, kopyalama ve kaydetme |
 | `macos/Sources/Shapes.swift` | macOS: çizim şekilleri |

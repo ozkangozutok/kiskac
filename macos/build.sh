@@ -31,8 +31,14 @@ cp "$here/Info.plist" "$app/Contents/Info.plist"
 "$app/Contents/MacOS/Kiskac" --export-iconset "$tmp/Kiskac.iconset"
 iconutil -c icns -o "$app/Contents/Resources/Kiskac.icns" "$tmp/Kiskac.iconset"
 
-# Yerel (ad-hoc) imza: ekran kaydı izni ve oturum açılışında başlatma için gerekli.
-codesign --force --sign "${SIGN_IDENTITY:--}" --options runtime "$app"
+# Varsayılan yerel (ad-hoc) imza. SIGN_IDENTITY verilirse (ör. Developer ID) güvenli zaman damgası da eklenir.
+identity="${SIGN_IDENTITY:--}"
+if [ "$identity" = "-" ]; then
+    codesign --force --sign - --options runtime "$app"
+else
+    codesign --force --sign "$identity" --options runtime --timestamp "$app"
+fi
+codesign --verify --strict "$app"
 
 rm -rf "$tmp"
 echo "OK: $app"

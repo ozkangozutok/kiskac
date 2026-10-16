@@ -139,7 +139,7 @@ final class BackdropView: NSView {
 
         dimLayer.frame = bounds
         dimLayer.fillRule = .evenOdd
-        dimLayer.fillColor = CGColor(gray: 0, alpha: 0.45)
+        dimLayer.fillColor = CGColor(gray: 0, alpha: Settings.dimOpacity)
         dimLayer.actions = ["path": NSNull()]
         dimLayer.path = CGPath(rect: bounds, transform: nil)
         root.addSublayer(dimLayer)
@@ -193,8 +193,12 @@ final class CanvasView: NSView {
     private var lastPoint = CGPoint.zero
 
     private var tool = Tool.select
-    private var colorIndex = 0
-    private var penWidth: CGFloat = 3
+    private var colorIndex = 0 {
+        didSet { if Settings.rememberStyle { Settings.lastColor = colorIndex } }
+    }
+    private var penWidth: CGFloat = 3 {
+        didSet { if Settings.rememberStyle { Settings.lastWidth = penWidth } }
+    }
     private var shapes: [Shape] = []
     private var current: Shape?
     private var currentBounds = CGRect.null
@@ -213,6 +217,10 @@ final class CanvasView: NSView {
         self.pixelScale = CGFloat(image.width) / max(frame.width, 1)
         self.topInset = topInset
         super.init(frame: frame)
+        if Settings.rememberStyle {
+            colorIndex = min(max(Settings.lastColor, 0), Self.palette.count - 1)
+            penWidth = min(max(Settings.lastWidth, 1), 40)
+        }
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         buildButtons()
@@ -732,7 +740,7 @@ final class CanvasView: NSView {
         guard hasSel, sel.width >= 1, sel.height >= 1 else { return }
         commitText()
         guard let img = renderResult() else { return }
-        if Output.saveWithPanel(img, pointSize: sel.size, aboveLevel: window?.level ?? .screenSaver) {
+        if Output.save(img, pointSize: sel.size, aboveLevel: window?.level ?? .screenSaver) {
             session?.close()
         } else {
             window?.makeKeyAndOrderFront(nil)
@@ -747,7 +755,7 @@ final class CanvasView: NSView {
         dirtyRect.fill(using: .copy)
 
         guard hasSel else {
-            drawPill(hintRect(), alpha: 225 / 255, text: Self.hintText)
+            if Settings.showHint { drawPill(hintRect(), alpha: 225 / 255, text: Self.hintText) }
             return
         }
 
@@ -876,10 +884,29 @@ final class CanvasView: NSView {
 // Pano ve dosyaya yazma.
 @MainActor
 enum Output {
+    // Ayar açıksa Retina görüntü nokta boyutuna küçültülür.
+    private static func prepared(_ img: CGImage, _ pointSize: CGSize) -> CGImage {
+        let w = Int(pointSize.width.rounded()), h = Int(pointSize.height.rounded())
+        guard Settings.downscale, w > 0, h > 0, img.width > w,
+              let g = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: img.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        else { return img }
+        g.interpolationQuality = .high
+        g.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return g.makeImage() ?? img
+    }
+
     private static func rep(_ img: CGImage, _ pointSize: CGSize) -> NSBitmapImageRep {
-        let r = NSBitmapImageRep(cgImage: img)
+        let r = NSBitmapImageRep(cgImage: prepared(img, pointSize))
         r.size = pointSize // Retina görüntü yapıştırıldığı yerde doğru boyutta (144 dpi) görünsün
         return r
+    }
+
+    private static func encode(_ r: NSBitmapImageRep, jpeg: Bool) -> Data? {
+        jpeg
+            ? r.representation(using: .jpeg, properties: [.compressionFactor: Settings.jpegQuality])
+            : r.representation(using: .png, properties: [:])
     }
 
     static func copy(_ img: CGImage, pointSize: CGSize) {
@@ -892,46 +919,61 @@ enum Output {
         pb.writeObjects([item])
     }
 
-    // Kaydedildiyse true döner.
-    static func saveWithPanel(_ img: CGImage, pointSize: CGSize, aboveLevel: NSWindow.Level) -> Bool {
-        let panel = NSSavePanel()
-        panel.title = "Ekran görüntüsünü kaydet"
-        panel.level = NSWindow.Level(rawValue: aboveLevel.rawValue + 1)
-        panel.directoryURL = Settings.saveDir
-        panel.canCreateDirectories = true
-        panel.isExtensionHidden = false
-        panel.allowedContentTypes = [.png]
-
+    private static func baseName() -> String {
         let stamp = DateFormatter()
         stamp.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let base = "Kıskaç_" + stamp.string(from: Date())
-        panel.nameFieldStringValue = base + ".png"
+        return "Kıskaç_" + stamp.string(from: Date())
+    }
 
-        let format = FormatPicker(panel: panel)
-        panel.accessoryView = format.view
+    // Kaydedildiyse true döner. Hızlı kaydetme açıksa panel açılmadan kayıt klasörüne yazar.
+    static func save(_ img: CGImage, pointSize: CGSize, aboveLevel: NSWindow.Level) -> Bool {
+        let level = NSWindow.Level(rawValue: aboveLevel.rawValue + 1)
+        let url: URL
+        if Settings.quickSave {
+            let dir = Settings.saveDir
+            let ext = Settings.jpeg ? "jpg" : "png"
+            var candidate = dir.appendingPathComponent(baseName() + "." + ext)
+            var n = 2
+            while FileManager.default.fileExists(atPath: candidate.path) {
+                candidate = dir.appendingPathComponent(baseName() + " (\(n))." + ext)
+                n += 1
+            }
+            url = candidate
+        } else {
+            let panel = NSSavePanel()
+            panel.title = "Ekran görüntüsünü kaydet"
+            panel.level = level
+            panel.directoryURL = Settings.saveDir
+            panel.canCreateDirectories = true
+            panel.isExtensionHidden = false
+            panel.allowedContentTypes = [Settings.jpeg ? .jpeg : .png]
+            panel.nameFieldStringValue = baseName() + (Settings.jpeg ? ".jpg" : ".png")
 
-        let ok = withExtendedLifetime(format) { panel.runModal() == .OK }
-        guard ok, let url = panel.url else { return false }
+            let format = FormatPicker(panel: panel, jpeg: Settings.jpeg)
+            panel.accessoryView = format.view
+
+            let ok = withExtendedLifetime(format) { panel.runModal() == .OK }
+            guard ok, let u = panel.url else { return false }
+            url = u
+        }
 
         let r = rep(img, pointSize)
         let isJpeg = ["jpg", "jpeg"].contains(url.pathExtension.lowercased())
-        let data = isJpeg
-            ? r.representation(using: .jpeg, properties: [.compressionFactor: 0.92])
-            : r.representation(using: .png, properties: [:])
         do {
-            guard let d = data else { throw CocoaError(.fileWriteUnknown) }
+            guard let d = encode(r, jpeg: isJpeg) else { throw CocoaError(.fileWriteUnknown) }
             try d.write(to: url, options: .atomic)
-            Settings.saveDir = url.deletingLastPathComponent()
-            return true
+            if !Settings.quickSave { Settings.saveDir = url.deletingLastPathComponent() }
         } catch {
             let a = NSAlert()
             a.messageText = "Kaydedilemedi"
             a.informativeText = error.localizedDescription
             a.alertStyle = .warning
-            a.window.level = panel.level
+            a.window.level = level
             a.runModal()
             return false
         }
+        if Settings.copyAfterSave { copy(img, pointSize: pointSize) }
+        return true
     }
 }
 
@@ -942,10 +984,11 @@ final class FormatPicker: NSObject {
     private let popup: NSPopUpButton
     private weak var panel: NSSavePanel?
 
-    init(panel: NSSavePanel) {
+    init(panel: NSSavePanel, jpeg: Bool) {
         self.panel = panel
         popup = NSPopUpButton(frame: .zero, pullsDown: false)
         popup.addItems(withTitles: ["PNG", "JPEG"])
+        popup.selectItem(at: jpeg ? 1 : 0)
         let label = NSTextField(labelWithString: "Biçim:")
         let stack = NSStackView(views: [label, popup])
         stack.orientation = .horizontal

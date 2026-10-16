@@ -8,48 +8,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotKeys = HotKeys()
     private var session: OverlaySession?
     private var capturing = false
+    private var captureItem: NSMenuItem!
     private var loginItem: NSMenuItem!
     private var permissionItem: NSMenuItem!
+    private var updateItem: NSMenuItem!
+    private let updater = Updater()
+    private lazy var settingsWindow: SettingsWindowController = {
+        let c = SettingsWindowController()
+        c.model.applyHotKeys = { [weak self] in self?.applyHotKeys() ?? false }
+        c.model.pauseHotKeys = { [weak self] in self?.hotKeys.unregisterAll() }
+        c.model.checkForUpdates = { [weak self] in self?.updater.check(userInitiated: true) }
+        return c
+    }()
+
+    private static let shutterSound: NSSound? = {
+        let path = "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif"
+        return NSSound(contentsOfFile: path, byReference: true) ?? NSSound(named: "Tink")
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Settings.registerDefaults()
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = Logo.menuBarImage()
-        statusItem.button?.toolTip = "Kıskaç — ⇧⌘2 ile ekran görüntüsü"
 
         let menu = NSMenu()
         menu.delegate = self
-        let capture = NSMenuItem(title: "Ekran görüntüsü al", action: #selector(captureFromMenu), keyEquivalent: "2")
-        capture.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(capture)
+        captureItem = NSMenuItem(title: "Ekran görüntüsü al", action: #selector(captureFromMenu), keyEquivalent: "")
+        menu.addItem(captureItem)
         menu.addItem(NSMenuItem(title: "Kayıt klasörünü aç", action: #selector(openSaveDir), keyEquivalent: ""))
         permissionItem = NSMenuItem(title: "Ekran kaydı izni ver…", action: #selector(openPermissionSettings), keyEquivalent: "")
         menu.addItem(permissionItem)
         menu.addItem(.separator())
         loginItem = NSMenuItem(title: "Oturum açılınca başlat", action: #selector(toggleLogin), keyEquivalent: "")
         menu.addItem(loginItem)
+        menu.addItem(NSMenuItem(title: "Ayarlar…", action: #selector(openSettings), keyEquivalent: ","))
+        updateItem = NSMenuItem(title: "Güncellemeleri denetle…", action: #selector(checkForUpdates), keyEquivalent: "")
+        menu.addItem(updateItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Kıskaç'tan çık", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) { item.target = self }
         statusItem.menu = menu
 
-        // ⇧⌘2: macOS'un ⇧⌘3/4/5 kısayollarıyla çakışmaz.
-        // F13: PC klavyelerindeki PrtSc tuşu macOS'ta F13 olarak gelir.
+        updater.onStateChange = { [weak self] state in
+            self?.updateItem.title = state ?? "Güncellemeleri denetle…"
+            self?.updateItem.isEnabled = state == nil
+        }
+        updater.canInterrupt = { [weak self] in self?.session == nil && self?.capturing == false }
+        updater.startAutomaticChecks()
+
         HotKeys.handler = { [weak self] in self?.startCapture() }
-        let a = hotKeys.register(keyCode: kVK_ANSI_2, modifiers: cmdKey | shiftKey)
-        let b = hotKeys.register(keyCode: kVK_F13, modifiers: 0)
-        if !a && !b {
+        if !applyHotKeys() {
             alert("Kısayol kaydedilemedi",
-                  "⇧⌘2 başka bir uygulama tarafından kullanılıyor. Menü çubuğundaki simgeden çekim yapabilirsin.")
+                  "\(Settings.hotKey.display) başka bir uygulama tarafından kullanılıyor. Ayarlar'dan başka bir kısayol seçebilirsin.")
         }
 
         if !Settings.initialized {
             Settings.initialized = true
             LoginItem.set(true)
             alert("Kıskaç çalışıyor",
-                  "⇧⌘2 tuşlarına bas ve alanı seç. ⌘C kopyalar, ⌘S kaydeder.\n\nKıskaç menü çubuğunda çalışır; ilk çekimde macOS ekran kaydı izni isteyecek.",
+                  "\(Settings.hotKey.display) tuşlarına bas ve alanı seç. ⌘C kopyalar, ⌘S kaydeder.\n\nKıskaç menü çubuğunda çalışır; kısayolu ve diğer ayarları oradan değiştirebilirsin. İlk çekimde macOS ekran kaydı izni isteyecek.",
                   style: .informational)
             requestPermission()
         }
+    }
+
+    // Ana kısayol + isteğe bağlı F13 (PC klavyelerindeki PrtSc tuşu macOS'ta F13 olarak gelir).
+    // Ana kısayol kaydedildiyse true döner.
+    @discardableResult
+    private func applyHotKeys() -> Bool {
+        hotKeys.unregisterAll()
+        let main = Settings.hotKey
+        let ok = hotKeys.register(main)
+        let f13 = HotKey(keyCode: kVK_F13, modifiers: 0)
+        if Settings.useF13 && main != f13 { hotKeys.register(f13) }
+
+        captureItem.keyEquivalent = main.menuKeyEquivalent
+        captureItem.keyEquivalentModifierMask = main.cocoaModifiers
+        statusItem.button?.toolTip = "Kıskaç — \(main.display) ile ekran görüntüsü"
+        return ok
     }
 
     // Uygulama zaten çalışırken yeniden açılırsa (Finder, Spotlight, Dock): ekran görüntüsü al.
@@ -74,6 +111,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleLogin() {
         LoginItem.set(!LoginItem.isEnabled)
+    }
+
+    @objc private func checkForUpdates() {
+        updater.check(userInitiated: true)
+    }
+
+    @objc private func openSettings() {
+        settingsWindow.show()
     }
 
     @objc private func openPermissionSettings() {
@@ -118,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do {
                 let shots = try await ScreenCapture.captureAll()
                 guard !shots.isEmpty else { return }
+                if Settings.playSound { Self.shutterSound?.play() }
                 let s = OverlaySession(shots: shots)
                 s.onClose = { [weak self] in self?.session = nil }
                 session = s
