@@ -5,209 +5,171 @@
 <h1 align="center">Kıskaç</h1>
 
 <p align="center">
-  Windows, macOS ve Linux için hafif, hızlı ekran görüntüsü aracı. <b>PrtSc</b> (macOS'ta <b>⇧⌘2</b>) bas, alanı seç, üstüne çiz, kopyala.
+  Windows, macOS ve Linux için hafif, hızlı ve açık kaynaklı ekran görüntüsü aracı.<br>
+  Kısayola bas, alanı seç, üstüne çiz, kopyala.
+</p>
+
+<p align="center">
+  <a href="https://github.com/ozkangozutok/kiskac/releases/latest"><img alt="Son sürüm" src="https://img.shields.io/github/v/release/ozkangozutok/kiskac?label=s%C3%BCr%C3%BCm"></a>
+  <a href="LICENSE"><img alt="Lisans: MIT" src="https://img.shields.io/github/license/ozkangozutok/kiskac?label=lisans"></a>
+  <a href="https://github.com/ozkangozutok/kiskac/actions"><img alt="Derleme" src="https://img.shields.io/github/actions/workflow/status/ozkangozutok/kiskac/linux.yml?label=derleme"></a>
 </p>
 
 ---
 
-Kıskaç, Lightshot benzeri bir ekran görüntüsü aracıdır. Windows'ta tek bir küçük `.exe` dosyasıdır, kurulum gerektirmez ve sistem tepsisinde sessizce çalışır. macOS'ta yerel (Swift + AppKit) bir menü çubuğu uygulamasıdır. Linux'ta (Qt 6) tek dosyalık bir AppImage olarak X11 ve Wayland'de çalışır.
-
 ## Özellikler
 
-- **PrtSc ile anında çekim:** ekran kararır, alanı sürükleyerek seçersin. Tek tıklarsan o monitörün tamamı seçilir.
-- **Çoklu monitör ve yüksek DPI desteği:** farklı ölçeklerdeki monitörlerde net çekim yapar.
-- **Seçimi düzenleme:** seçimi taşıyabilir, 8 tutamaçtan boyutlandırabilirsin. Boyut piksel olarak görünür.
-- **Çizim araçları:** kalem, çizgi, ok, dikdörtgen, fosforlu kalem ve metin.
-  - Shift'e basılıyken çizgi ve ok 45° adımlarla, dikdörtgen kare çizilir.
-- **6 renk:** kalınlığı fare tekerleğiyle ayarlarsın.
-- **Kopyala veya kaydet:** panoya kopyalayabilir ya da PNG, JPG veya BMP olarak kaydedebilirsin.
-- **Sistem tepsisi ve otomatik başlatma:** Windows açılınca kendiliğinden başlar (tepsi menüsünden kapatılabilir).
-- **Diğer kısayollar korunur:** Alt+PrtSc ve Win+PrtSc Windows'ta eskisi gibi çalışır.
-- **Ayarlar:** kısayol, karartma, kayıt biçimi ve klasörü, sormadan kaydetme ve daha fazlası.
-- **Otomatik güncelleme:** yeni sürümler GitHub Releases'tan indirilir, doğrulanır ve kurulur.
+- **Anında çekim:** kısayola bastığında ekran kararır, alanı sürükleyerek seçersin. Tek tıklarsan o ekranın tamamı seçilir.
+- **Seçimi düzenleme:** seçimi taşı, 8 tutamaçtan boyutlandır. Boyut piksel olarak görünür.
+- **Çizim araçları:** kalem, çizgi, ok, dikdörtgen, fosforlu kalem ve metin; 6 renk ve ayarlanabilir kalınlık.
+- **Kopyala veya kaydet:** panoya kopyala ya da PNG / JPEG olarak kaydet.
+- **Çoklu ekran ve yüksek çözünürlük:** Retina, 4K ve kesirli ölçeklemede net, tam piksel görüntü.
+- **Arka planda sessizce çalışır:** sistem tepsisinde (macOS'ta menü çubuğunda) durur, oturum açılınca kendiliğinden başlar.
+- **Ayarlanabilir:** kısayol, karartma, kayıt klasörü ve biçimi, sormadan kaydetme ve daha fazlası.
+- **Kendini günceller:** yeni sürümler GitHub'dan indirilir, doğrulanır ve kurulur.
+- **Hafif:** kurulum gerektirmez, reklam ya da hesap yoktur, internete yalnızca güncelleme denetimi için bağlanır.
 
-## Kısayollar (Windows)
+## İndir
 
-| Tuş | İşlev |
-|---|---|
-| `PrtSc` | Ekran görüntüsü al (Ayarlar'dan değiştirilebilir) |
-| `Ctrl+C` / `Enter` / çift tık | Panoya kopyala ve kapat |
-| `Ctrl+S` | Dosyaya kaydet |
-| `Ctrl+Z` | Geri al |
-| `Esc` / sağ tık | İptal |
-| `S` `P` `L` `A` `R` `M` `T` | Seç, Kalem, Çizgi, Ok, Dikdörtgen, Fosforlu kalem, Metin |
-| Fare tekerleği | Kalem kalınlığı |
+| Platform | Dosya | Gereksinim |
+|---|---|---|
+| Windows | [**Kiskac.exe**](https://github.com/ozkangozutok/kiskac/releases/latest/download/Kiskac.exe) | Windows 10 veya 11 |
+| macOS | [**Kiskac-macOS.zip**](https://github.com/ozkangozutok/kiskac/releases/latest/download/Kiskac-macOS.zip) | macOS 14 Sonoma veya üstü (Apple Silicon ve Intel) |
+| Linux | [**Kiskac-x86_64.AppImage**](https://github.com/ozkangozutok/kiskac/releases/latest/download/Kiskac-x86_64.AppImage) | 64 bit, X11 veya Wayland |
 
-## Derleme (Windows)
+Tüm sürümler ve değişiklikler: [Releases](https://github.com/ozkangozutok/kiskac/releases) · [CHANGELOG](CHANGELOG.md)
 
-Ek bir şey kurman gerekmez. Windows 10 ve 11 ile gelen .NET Framework 4.8 C# derleyicisi yeterlidir:
+## Çalıştırma
 
-```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1
-```
+### Windows
 
-Çıktı `bin\Kiskac.exe` olarak oluşur. Uygulama simgesi derleme sırasında koddan ([src/Logo.cs](src/Logo.cs)) üretilir. Sürüm numarası kökteki [VERSION](VERSION) dosyasından alınır (macOS ile ortak).
+1. **Kiskac.exe**'yi indir ve istediğin bir klasöre koy (ör. `Belgeler\Kıskaç`). Kurulum yoktur.
+2. Çift tıklayarak çalıştır. Kıskaç sistem tepsisine yerleşir.
+3. **PrtSc** tuşuna bas.
 
-GitHub'da her push'ta Windows derlemesi [GitHub Actions](.github/workflows/windows.yml) ile denetlenir. Bir sürüm yayınlanınca `Kiskac.exe` orada derlenip sürüme eklenir.
+> İlk çalıştırmada **Windows SmartScreen** uyarı verebilir, çünkü exe dijital olarak imzalı değil. **Ek bilgi → Yine de çalıştır** ile devam et.
 
-### Ayarlar (Windows)
+### macOS
 
-Tepsi simgesine sağ tıklayıp **Ayarlar…** ile açılır:
+1. **Kiskac-macOS.zip**'i indir, aç ve **Kiskac.app**'i **Uygulamalar** klasörüne taşı.
+2. Uygulamayı aç. Kıskaç menü çubuğuna yerleşir (Dock'ta görünmez).
+3. **⇧⌘2** tuşlarına bas. İlk çekimde macOS **Ekran ve Sistem Sesi Kaydı** izni ister: **Sistem Ayarları › Gizlilik ve Güvenlik** bölümünden Kıskaç'ı aç ve uygulamayı yeniden başlat.
 
-| Bölüm | Ayar |
-|---|---|
-| Kısayol | Ekran görüntüsü kısayolunu kaydet: düğmeye tıkla, yeni tuşlara bas (PrtSc de kaydedilebilir) |
-| Genel | Windows açılınca başlat |
-| Seçim ekranı | Karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama |
-| Kaydetme ve kopyalama | Kayıt klasörü, varsayılan biçim (PNG/JPEG/BMP) ve JPEG kalitesi, `Ctrl+S` ile sormadan kaydetme, kaydettikten sonra panoya da kopyalama |
-| Güncelleme | Sürüm, şimdi denetle, otomatik denetim |
+> İlk açılışta "doğrulanamadı" uyarısı çıkarsa: **Sistem Ayarları › Gizlilik ve Güvenlik › Yine de Aç**.
+> PC klavyesi kullanıyorsan **PrtSc** tuşu da çalışır (macOS'ta F13 olarak gelir).
 
-Kısayolda Ctrl olmalı (PrtSc, F tuşları, Pause ve Scroll Lock tek başına da olur). Win tuşlu kısayollar, Ctrl+C/V gibi standart kısayollar ve AltGr ile karakter yazan birleşimler (Türkçe klavyede Ctrl+Alt+Q = @ gibi) seçilemez.
-
-### Güncelleme (Windows)
-
-Kıskaç yeni sürümleri GitHub Releases'tan kendisi denetler (açılıştan kısa süre sonra, günde en fazla bir kez). Tepsi menüsünden **Güncellemeleri denetle…** ile elle de denetlenebilir. Güncellemede `Kiskac.exe` exe'nin yanına indirilir, SHA256 özeti ve sürümü doğrulanır, çalışan exe yeniden adlandırılıp yenisi yerine konur ve Kıskaç yeniden açılır. Exe'nin bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
-
-## macOS
-
-macOS sürümü ayrı ve tamamen yerel bir uygulamadır ([macos/](macos/)). Apple Silicon ve Intel için evrensel derlenir. macOS 14 (Sonoma) veya üstü gerekir.
-
-- **Menü çubuğunda çalışır:** Dock'ta görünmez. Simge açık ve koyu menü çubuğuna kendiliğinden uyar.
-- **ScreenCaptureKit ile çekim:** tüm ekranlar aynı anda, her biri kendi Retina çözünürlüğünde yakalanır. Kaydedilen ve kopyalanan görüntü tam piksel çözünürlüğündedir; boyut etiketi de piksel gösterir.
-- **Akıcı seçim:** ekran görüntüsü bir kez GPU katmanına verilir. Fare hareketinde yalnızca karartmadaki delik ve değişen bölge yeniden çizilir.
-- **Çoklu ekran ve tam ekran uygulamalar:** her ekran kendi seçim penceresini alır, tam ekran uygulamaların üstünde de açılır.
-- **İz dörtgeni:** kalınlık iki parmak kaydırmayla ayarlanır.
-- **Kapatınca önceki uygulamaya döner:** kopyaladıktan hemen sonra ⌘V ile yapıştırabilirsin.
-
-### Kısayollar (macOS)
-
-| Tuş | İşlev |
-|---|---|
-| `⇧⌘2` veya `F13` | Ekran görüntüsü al (Ayarlar'dan değiştirilebilir; PC klavyelerindeki PrtSc tuşu macOS'ta F13 olarak gelir) |
-| `⌘C` / `↩` / çift tık | Panoya kopyala ve kapat |
-| `⌘S` | Dosyaya kaydet (PNG veya JPEG) |
-| `⌘Z` | Geri al |
-| `Esc` / sağ tık | İptal |
-| `S` `P` `L` `A` `R` `M` `T` | Seç, Kalem, Çizgi, Ok, Dikdörtgen, Fosforlu kalem, Metin |
-| `⇧↩` | Metinde yeni satır |
-
-Kıskaç zaten çalışırken uygulamayı yeniden açmak (Spotlight, Finder) da ekran görüntüsü alır.
-
-### Ayarlar (macOS)
-
-Menü çubuğundaki Kıskaç simgesine tıklayıp **Ayarlar…** seçeneğiyle açılır:
-
-| Bölüm | Ayar |
-|---|---|
-| Kısayol | Ekran görüntüsü kısayolunu kaydet: düğmeye tıkla, yeni tuşlara bas. PrtSc (F13) tuşunu aç/kapat |
-| Genel | Oturum açılınca başlat, çekimde deklanşör sesi |
-| Seçim ekranı | Karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama |
-| Kaydetme ve kopyalama | Kayıt klasörü, varsayılan biçim (PNG/JPEG) ve JPEG kalitesi, `⌘S` ile sormadan kaydetme, kaydettikten sonra panoya da kopyalama, Retina görüntüyü 1x boyutuna küçültme |
-
-Kısayolda ⌘ veya ⌃ tuşlarından en az biri olmalı (F tuşları tek başına da olur). Etkin macOS sistem kısayolları (⇧⌘3/4/5, Spotlight vb.) ve ⌘C, ⌘V, ⌘Q gibi standart uygulama kısayolları seçilemez.
-
-### Derleme (macOS)
-
-Yalnızca Xcode Komut Satırı Araçları gerekir (`xcode-select --install`). Xcode projesi yoktur:
-
-```sh
-./macos/build.sh
-```
-
-Çıktı `bin/Kiskac.app` olarak oluşur. **İlk açmadan önce Uygulamalar klasörüne taşı:** ilk açılışta oturum açılınca başlatma, uygulamanın o anki konumuna kaydedilir. Uygulama simgesi derleme sırasında koddan ([macos/Sources/Logo.swift](macos/Sources/Logo.swift)) üretilir.
-
-### Güncelleme (macOS)
-
-Kıskaç yeni sürümleri GitHub Releases'tan kendisi denetler: açılıştan kısa süre sonra ve günde en fazla bir kez. Menüden **Güncellemeleri denetle…** ile elle de denetlenebilir, otomatik denetim Ayarlar'dan kapatılabilir.
-
-Yeni sürüm bulununca sürüm notları gösterilir. **Şimdi güncelle** seçilirse `Kiskac-macOS.zip` indirilir, ardından:
-
-- SHA256 özeti GitHub'daki değerle karşılaştırılır,
-- paket kimliği, sürümü ve Developer ID imzası (aynı ekip) doğrulanır,
-- Kıskaç kapanınca eski uygulama yenisiyle değiştirilip yeniden açılır.
-
-Uygulamanın bulunduğu klasöre yazma iznin yoksa indirme sayfası açılır.
-
-#### Sürüm yayınlama
-
-1. Kökteki `VERSION` dosyasını artır ve commit et.
-2. İsteğe bağlı: notarize için notarytool profilini bir kez oluştur. Profil yoksa notarize atlanır; o zaman ilk elle kurulumda Gatekeeper uyarısı çıkar, uygulama içi güncellemeler etkilenmez. Komut uygulamaya özel parolayı sorar ([appleid.apple.com](https://appleid.apple.com) › Oturum Açma ve Güvenlik):
-   ```sh
-   xcrun notarytool store-credentials kiskac-notary --apple-id <apple-id> --team-id XZPCTAZZ9W
-   ```
-3. Yayınla:
-   ```sh
-   ./macos/release.sh [sürüm-notları.md]
-   ```
-   Betik Developer ID ile imzalar, profil varsa notarize edip zımbalar (staple), `Kiskac-macOS.zip` dosyasını üretir ve `vX.Y.Z` GitHub sürümünü oluşturur. `Kiskac.exe` birkaç dakika içinde GitHub Actions tarafından sürüme eklenir.
-
-### Ekran kaydı izni
-
-İlk çekimde macOS, **Sistem Ayarları › Gizlilik ve Güvenlik › Ekran ve Sistem Sesi Kaydı** iznini ister. İzni verdikten sonra Kıskaç'ı yeniden başlatman gerekebilir.
-
-Yayınlanan sürümler Developer ID ile imzalı olduğundan izin güncellemelerde korunur. `build.sh` ise yerelde varsayılan olarak ad-hoc imzalar: yeniden derlediğinde imza değişir, macOS da izni yeniden isteyebilir. Bu durumda listeden Kıskaç'ı kaldırıp yeniden ekle ya da sabit bir imzayla derle: `SIGN_IDENTITY="Apple Development: ..." ./macos/build.sh`.
-
-## Linux
-
-Linux sürümü C++ ve Qt 6 ile yazılmış yerel bir uygulamadır ([linux/](linux/)). Tek dosyalık **Kiskac-x86_64.AppImage** olarak dağıtılır; kurulum gerektirmez, X11 ve Wayland'de çalışır.
+### Linux
 
 ```sh
 chmod +x Kiskac-x86_64.AppImage
 ./Kiskac-x86_64.AppImage
 ```
 
-- **Tepsi simgesi ve tek örnek:** Kıskaç arka planda çalışır. Yeniden açmak ya da `Kiskac-x86_64.AppImage --capture` ekran görüntüsü alır.
-- **Çekim:** X11'de her ekran doğrudan yakalanır. Wayland'de uygulamalar ekranı doğrudan okuyamaz; `xdg-desktop-portal` ekran görüntüsü arayüzü kullanılır (masaüstü ilk seferde izin isteyebilir).
-- **Akıcı seçim:** ekran görüntüsü ve karartılmış hali bir kez hazırlanır; fare hareketinde yalnızca değişen bölge yeniden çizilir. Yüksek DPI ve kesirli ölçeklemede tam piksel çözünürlüğünde kaydeder.
-- **Ayarlar ve otomatik güncelleme:** Windows ve macOS ile aynı seçenekler. AppImage kendini GitHub Releases'tan günceller (SHA256 ve sürüm doğrulamasıyla).
+Kıskaç sistem tepsisine yerleşir. Kısayol masaüstü ortamına göre farklı çalışır:
 
-### Kısayol (Linux)
-
-| Ortam | Nasıl çalışır |
+| Ortam | Kısayol |
 |---|---|
-| X11 (GNOME, KDE, Xfce, Cinnamon, MATE…) | Kıskaç kısayolu kendisi yakalar. PrtSc masaüstünün kendi ekran görüntüsü aracına atanmışsa Ayarlar'da uyarı çıkar: ya orada kaldır ya da başka bir kısayol seç. |
-| Wayland + genel kısayol portalı (KDE Plasma, GNOME 48+, Hyprland) | Kısayol masaüstüne kaydedilir; masaüstü ilk seferde onay ister. |
-| Diğer Wayland ortamları | Masaüstü ayarlarında (Klavye › Özel kısayollar) `Kiskac-x86_64.AppImage --capture` komutuna bir kısayol ata. Ayarlar penceresi tam komutu gösterir. |
+| **X11** (GNOME, KDE, Xfce, Cinnamon, MATE…) | Kıskaç kısayolu kendisi yakalar. Varsayılan **PrtSc**'dir; masaüstünün kendi ekran görüntüsü aracı bu tuşu kullanıyorsa Ayarlar açılır ve başka bir kısayol (ör. **Ctrl+Shift+X**) seçmeni ister. |
+| **Wayland**: KDE Plasma, GNOME 48+, Hyprland | Kısayol masaüstüne kaydedilir; masaüstü ilk seferde onay ister. |
+| **Diğer Wayland ortamları** | Masaüstü ayarlarında (*Klavye › Özel kısayollar*) şu komuta bir kısayol ata: `/yol/Kiskac-x86_64.AppImage --capture`. Ayarlar penceresi tam komutu gösterir. |
 
-GNOME'da tepsi simgesi için *AppIndicator* desteği gerekir (Ubuntu'da hazır gelir; diğerlerinde "AppIndicator and KStatusNotifierItem Support" eklentisi).
+> Wayland'de ekran görüntüsü masaüstünün izin sistemi (xdg-desktop-portal) üzerinden alınır; ilk seferde izin istenebilir.
+> GNOME'da tepsi simgesi için *AppIndicator* desteği gerekir (Ubuntu'da hazır gelir; diğer dağıtımlarda "AppIndicator and KStatusNotifierItem Support" eklentisini kur).
 
-### Derleme (Linux)
+## Kullanım
 
-```sh
-sudo apt install build-essential cmake ninja-build qt6-base-dev libxcb1-dev libxcb-keysyms1-dev
-./linux/build.sh
-```
+Kısayola bastığında ekran kararır. Alanı sürükleyerek seç (tek tıklama o ekranın tamamını seçer), sonra araç çubuğuyla üstüne çiz.
 
-Çıktı `bin/linux/kiskac` olarak oluşur. AppImage, [GitHub Actions](.github/workflows/linux.yml) ile Ubuntu 22.04 üzerinde derlenir ve her push'ta Xvfb altında iç denetimlerden geçer; bir sürüm yayınlanınca o sürüme eklenir.
+| İşlev | Windows / Linux | macOS |
+|---|---|---|
+| Ekran görüntüsü al | `PrtSc` | `⇧⌘2` |
+| Panoya kopyala ve kapat | `Ctrl+C`, `Enter` ya da çift tık | `⌘C`, `↩` ya da çift tık |
+| Dosyaya kaydet | `Ctrl+S` | `⌘S` |
+| Geri al | `Ctrl+Z` | `⌘Z` |
+| İptal | `Esc` ya da sağ tık | `Esc` ya da sağ tık |
+| Seç / taşı | `S` | `S` |
+| Kalem · Çizgi · Ok | `P` · `L` · `A` | `P` · `L` · `A` |
+| Dikdörtgen · Fosforlu kalem · Metin | `R` · `M` · `T` | `R` · `M` · `T` |
+| Düz çizgi (45°) / kare | çizerken `Shift` | çizerken `⇧` |
+| Kalınlık | fare tekerleği | kaydırma |
+| Metinde yeni satır | `Shift+Enter` | `⇧↩` |
 
-## Proje yapısı
+Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü alır.
 
-| Dosya | Görevi |
-|---|---|
-| `src/Program.cs` | Giriş noktası, tek örnek kontrolü |
-| `src/TrayContext.cs` | Tepsi simgesi, menü, çekimi başlatma |
-| `src/KeyboardHook.cs` | Sistem genelinde kısayol yakalama ve kısayol kaydı (ayrı iş parçacığında) |
-| `src/OverlayForm.cs` | Seçim ekranı, araç çubuğu, çizim ve kaydetme |
-| `src/Shapes.cs` | Kalem, çizgi, ok, dikdörtgen, metin şekilleri |
-| `src/Logo.cs` | Kodla çizilen logo |
-| `src/HotKey.cs` | Kısayol modeli, doğrulama ve tuş adları |
-| `src/SettingsForm.cs` | Ayarlar penceresi |
-| `src/Updater.cs` | GitHub Releases ile otomatik güncelleme |
-| `macos/Sources/AppDelegate.swift` | macOS: menü çubuğu, kısayol, izinler |
-| `macos/Sources/SettingsWindow.swift` | macOS: ayarlar penceresi ve kısayol kaydı |
-| `macos/Sources/HotKeys.swift` | macOS: sistem geneli kısayol ve tuş adları |
-| `macos/Sources/Updater.swift` | macOS: GitHub Releases ile otomatik güncelleme |
-| `macos/release.sh` | macOS: imzalama, notarize ve GitHub sürümü yayınlama |
-| `linux/src/App.cpp` | Linux: tepsi, tek örnek, çekim akışı |
-| `linux/src/Capture.cpp` | Linux: X11 ve Wayland (portal) ekran yakalama |
-| `linux/src/GlobalHotKey.cpp` | Linux: X11 ve Wayland (portal) genel kısayol |
-| `linux/src/Overlay.cpp` | Linux: seçim ekranı, araç çubuğu, kopyalama ve kaydetme |
-| `linux/src/Updater.cpp` | Linux: AppImage otomatik güncelleme |
-| `macos/Sources/Capture.swift` | macOS: ScreenCaptureKit ile çoklu ekran çekimi |
-| `macos/Sources/Overlay.swift` | macOS: seçim ekranı, araç çubuğu, kopyalama ve kaydetme |
-| `macos/Sources/Shapes.swift` | macOS: çizim şekilleri |
-| `macos/Sources/Logo.swift` | macOS: logo, uygulama ve menü çubuğu simgesi |
+## Ayarlar
+
+Tepsi simgesine sağ tıklayıp (macOS'ta menü çubuğundaki simgeye tıklayıp) **Ayarlar…**'ı seç.
+
+- **Kısayol:** düğmeye tıkla ve yeni tuşlara bas. Kopyala/yapıştır gibi standart kısayollar ve sistem kısayolları seçilemez.
+- **Genel:** oturum açılınca başlat, çekimde deklanşör sesi (macOS).
+- **Seçim ekranı:** karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama.
+- **Kaydetme ve kopyalama:** kayıt klasörü (varsayılan *Resimler › Kıskaç*), biçim ve JPEG kalitesi, sormadan kaydetme, kaydettikten sonra panoya da kopyalama.
+- **Güncelleme:** sürüm bilgisi, şimdi denetle, otomatik denetim.
+
+## Güncelleme
+
+Kıskaç yeni sürümleri günde en fazla bir kez denetler. Yeni sürüm çıktığında sürüm notlarını gösterir; **Şimdi güncelle**'yi seçersen indirip doğrular, kurar ve kendini yeniden açar. Menüdeki **Güncellemeleri denetle…** ile elle de denetleyebilirsin; otomatik denetimi Ayarlar'dan kapatabilirsin.
+
+Uygulamanın bulunduğu klasöre yazma iznin yoksa (ör. `Program Files`) indirme sayfası açılır.
+
+## Sorun giderme
+
+<details>
+<summary><b>Kısayola basınca bir şey olmuyor</b></summary>
+
+- Tepsi (ya da menü çubuğu) simgesinin göründüğünden, yani Kıskaç'ın çalıştığından emin ol.
+- Başka bir ekran görüntüsü uygulaması (Lightshot, ShareX, Flameshot, masaüstünün kendi aracı) aynı tuşu kullanıyor olabilir. Ayarlar'dan başka bir kısayol seç.
+- Linux'ta Ayarlar penceresi kısayolun durumunu ve gerekirse masaüstüne atayabileceğin komutu gösterir.
+</details>
+
+<details>
+<summary><b>macOS'ta ekran görüntüsü boş ya da yalnızca masaüstü görünüyor</b></summary>
+
+Ekran kaydı izni eksik. **Sistem Ayarları › Gizlilik ve Güvenlik › Ekran ve Sistem Sesi Kaydı** bölümünde Kıskaç'ı aç ve uygulamayı yeniden başlat. Kıskaç listede varsa ama çalışmıyorsa listeden kaldırıp yeniden ekle.
+</details>
+
+<details>
+<summary><b>Linux'ta tepsi simgesi görünmüyor</b></summary>
+
+GNOME tepsi simgelerini varsayılan olarak göstermez. "AppIndicator and KStatusNotifierItem Support" eklentisini kur (Ubuntu'da hazır gelir). Simge olmasa da Kıskaç kısayolla çalışır; AppImage'ı yeniden açmak da ekran görüntüsü alır.
+</details>
+
+<details>
+<summary><b>Linux'ta AppImage açılmıyor</b></summary>
+
+Dosyanın çalıştırılabilir olduğundan emin ol: `chmod +x Kiskac-x86_64.AppImage`. Sorun sürerse terminalden çalıştırıp çıktıyı bir [hata bildirimiyle](https://github.com/ozkangozutok/kiskac/issues/new/choose) paylaş.
+</details>
+
+<details>
+<summary><b>Kıskaç'ı tamamen kaldırmak</b></summary>
+
+Ayarlar'dan "oturum açılınca başlat"ı kapat, menüden **Çıkış**'ı seç ve uygulama dosyasını sil. Ayarlar şuralarda kalır:
+
+- Windows: `HKEY_CURRENT_USER\Software\Kiskac` (kayıt defteri)
+- macOS: `~/Library/Preferences/com.kiskac.app.plist`
+- Linux: `~/.config/Kiskac/Kiskac.ini`
+</details>
+
+## Kaynaktan derleme
+
+Her platform kendi yerel teknolojisiyle yazılmıştır.
+
+| Platform | Teknoloji | Gerekenler | Komut | Çıktı |
+|---|---|---|---|---|
+| Windows | C# · WinForms (.NET Framework 4.8) | Yok (Windows'la gelir) | `powershell -ExecutionPolicy Bypass -File windows\build.ps1` | `bin\Kiskac.exe` |
+| macOS | Swift · AppKit · ScreenCaptureKit | Xcode Komut Satırı Araçları | `./macos/build.sh` | `bin/Kiskac.app` |
+| Linux | C++17 · Qt 6 | `build-essential cmake ninja-build qt6-base-dev libxcb1-dev libxcb-keysyms1-dev` | `./linux/build.sh` | `bin/linux/kiskac` |
+
+Proje yapısı, testler ve sürüm yayınlama için: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## Katkı
+
+Hata bildirimleri, öneriler ve katkılar memnuniyetle karşılanır.
+
+- Hata ya da öneri: [Issues](https://github.com/ozkangozutok/kiskac/issues/new/choose)
+- Kod katkısı: önce [CONTRIBUTING.md](CONTRIBUTING.md)'yi oku
+- Güvenlik açığı: herkese açık issue yerine [SECURITY.md](SECURITY.md)'deki yolu izle
 
 ## Lisans
 
-[MIT](LICENSE)
+Kıskaç [MIT lisansı](LICENSE) ile dağıtılan özgür yazılımdır.

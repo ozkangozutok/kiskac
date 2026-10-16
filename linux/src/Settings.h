@@ -4,7 +4,7 @@
 #include <QKeySequence>
 #include <QString>
 
-// Tüm ayarlar ~/.config/Kiskac/Kiskac.conf dosyasında tutulur.
+// Tüm ayarlar ~/.config/Kiskac/Kiskac.ini dosyasında tutulur.
 namespace Settings {
 
 QString saveDir();

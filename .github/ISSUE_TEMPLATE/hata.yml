@@ -1,0 +1,47 @@
+name: Hata bildirimi
+description: Kıskaç beklendiği gibi çalışmıyor
+labels: ["hata"]
+body:
+  - type: markdown
+    attributes:
+      value: Bildirdiğin için teşekkürler. Önce README'deki **Sorun giderme** bölümüne göz atmak işe yarayabilir.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows, macOS, Linux (X11), Linux (Wayland)]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Kıskaç sürümü
+      description: Ayarlar › Güncelleme bölümünde yazar.
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: İşletim sistemi ve masaüstü
+      placeholder: "Windows 11 23H2 · macOS 15.2 · Ubuntu 24.04 GNOME 46"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Ne oldu, ne bekliyordun?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden üretme adımları
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: extra
+    attributes:
+      label: Ek bilgi
+      description: Ekran sayısı ve ölçekleme, kullanılan kısayol, terminal çıktısı (Linux), ekran görüntüsü…

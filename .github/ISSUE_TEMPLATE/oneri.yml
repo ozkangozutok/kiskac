@@ -1,0 +1,25 @@
+name: Özellik önerisi
+description: Kıskaç'a eklenmesini istediğin bir şey
+labels: ["öneri"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Hangi sorunu çözüyor?
+      description: Ne yapmaya çalışıyorsun, şu an neden zor?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Önerin
+    validations:
+      required: true
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Hangi platformlar?
+      options:
+        - label: Windows
+        - label: macOS
+        - label: Linux
