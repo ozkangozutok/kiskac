@@ -150,6 +150,60 @@ namespace Kiskac
             return "#" + (argb & 0xFFFFFF).ToString("X6");
         }
 
+        public static int RecordCli(string[] a)
+        {
+            string path = Path.GetFullPath(a[1]);
+            var log = new StringBuilder();
+            try
+            {
+                var o = new RecordingOptions
+                {
+                    Path = path,
+                    Region = new System.Drawing.Rectangle(int.Parse(a[3]), int.Parse(a[4]), int.Parse(a[5]), int.Parse(a[6])),
+                    Format = a[7] == "gif" ? VideoFormat.Gif : VideoFormat.Mp4,
+                    Audio = (AudioMode)int.Parse(a[8]),
+                    Cursor = true
+                };
+                o.Fps = o.Format == VideoFormat.Gif ? Settings.GifFps : Settings.VideoFps;
+                var rec = new ScreenRecorder(o);
+                Exception err = null;
+                rec.Finished += (p, e) => { err = e; };
+                rec.Start();
+                System.Threading.Thread.Sleep((int)(double.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture) * 1000));
+                rec.Stop();
+                rec.Wait(30000);
+                log.AppendLine("Hata: " + (err == null ? "yok" : err.ToString()));
+                if (rec.Warning != null) log.AppendLine("Uyarı: " + rec.Warning);
+                if (err == null && o.Format == VideoFormat.Mp4)
+                {
+                    var info = Mp4Probe.Read(path, true);
+                    double secs = info.Duration / 1e7;
+                    log.AppendLine("MP4: " + info.Width + "x" + info.Height + ", " + secs.ToString("0.00") + " sn, " + info.FrameCount + " kare ("
+                        + (info.FrameCount / Math.Max(0.01, secs)).ToString("0.0") + " kare/sn), ses: " + info.HasAudio
+                        + ", " + new FileInfo(path).Length / 1024 + " KB");
+                    if (info.FirstFrame != null)
+                        using (var bmp = new System.Drawing.Bitmap(info.Width, info.Height, System.Drawing.Imaging.PixelFormat.Format32bppRgb))
+                        {
+                            var bd = bmp.LockBits(new System.Drawing.Rectangle(0, 0, info.Width, info.Height),
+                                System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
+                            for (int y = 0; y < info.Height; y++)
+                                Marshal.Copy(info.FirstFrame, y * info.Width, bd.Scan0 + y * bd.Stride, info.Width);
+                            bmp.UnlockBits(bd);
+                            bmp.Save(path + ".ilk-kare.png", System.Drawing.Imaging.ImageFormat.Png);
+                        }
+                }
+                else if (err == null)
+                    log.AppendLine("GIF: " + new FileInfo(path).Length / 1024 + " KB");
+                File.WriteAllText(path + ".log", log.ToString(), Encoding.UTF8);
+                return err == null ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(path + ".log", log + "İstisna: " + ex, Encoding.UTF8);
+                return 1;
+            }
+        }
+
         // Elle çalıştırma: Kiskac.exe --video-test <klasör>  → <klasör>\video-test.log
         public static int RunCli(string dir)
         {

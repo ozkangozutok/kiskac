@@ -30,6 +30,11 @@ namespace Kiskac
                 return code;
             }
 
+            // Arayüzsüz gerçek ekran kaydı (geliştirme ve doğrulama için):
+            // --record <dosya> <saniye> <x> <y> <gen> <yük> <mp4|gif> <ses 0-3>  → <dosya>.log
+            if (args.Length == 9 && args[0] == "--record")
+                return VideoTest.RecordCli(args);
+
             // Güncellemeden sonra: eski süreç kapanana kadar bekle, artıkları temizle.
             bool justUpdated = false;
             int oldPid;

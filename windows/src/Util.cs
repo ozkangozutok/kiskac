@@ -221,6 +221,49 @@ namespace Kiskac
             set { Set("JpegQuality", value); }
         }
 
+        // ---------------------------------------------------------------- video kaydı
+
+        public static string VideoDir
+        {
+            get
+            {
+                var v = Get("VideoDir") as string;
+                if (string.IsNullOrEmpty(v) || !Directory.Exists(v))
+                {
+                    v = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Kıskaç");
+                    Directory.CreateDirectory(v);
+                }
+                return v;
+            }
+            set { Set("VideoDir", value); }
+        }
+
+        // MP4 kare hızı: 15, 30 veya 60
+        public static int VideoFps
+        {
+            get
+            {
+                int v = GetInt("VideoFps", 30);
+                return v == 15 || v == 60 ? v : 30;
+            }
+            set { Set("VideoFps", value); }
+        }
+
+        // GIF kare hızı: 5–20
+        public static int GifFps
+        {
+            get { return Math.Max(5, Math.Min(20, GetInt("GifFps", 10))); }
+            set { Set("GifFps", value); }
+        }
+
+        public static bool RecordCursor { get { return GetBool("RecordCursor", true); } set { SetBool("RecordCursor", value); } }
+
+        public static AudioMode RecordAudio
+        {
+            get { return (AudioMode)Math.Max(0, Math.Min(3, GetInt("RecordAudio", (int)AudioMode.System))); }
+            set { Set("RecordAudio", (int)value); }
+        }
+
         public static bool QuickSave { get { return GetBool("QuickSave", false); } set { SetBool("QuickSave", value); } }
         public static bool CopyAfterSave { get { return GetBool("CopyAfterSave", false); } set { SetBool("CopyAfterSave", value); } }
         public static bool AutoUpdate { get { return GetBool("AutoUpdate", true); } set { SetBool("AutoUpdate", value); } }

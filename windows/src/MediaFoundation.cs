@@ -445,9 +445,15 @@ namespace Kiskac
             public int Width, Height;
             public bool HasAudio;
             public int[] FirstFrame; // BGRA, üstten alta, Width*Height
+            public int FrameCount;   // yalnızca countFrames=true ise
         }
 
         public static Info Read(string path)
+        {
+            return Read(path, false);
+        }
+
+        public static Info Read(string path, bool countFrames)
         {
             MF.Startup();
             IMFSourceReader reader = null;
@@ -535,6 +541,21 @@ namespace Kiskac
                         MF.Release(buf);
                         MF.Release(sample);
                     }
+                    info.FrameCount = 1;
+                }
+
+                while (countFrames && info.FirstFrame != null)
+                {
+                    int actual, flags;
+                    long ts;
+                    IMFSample sample;
+                    reader.ReadSample(MF.SOURCE_READER_FIRST_VIDEO_STREAM, 0, out actual, out flags, out ts, out sample);
+                    if (sample != null)
+                    {
+                        info.FrameCount++;
+                        MF.Release(sample);
+                    }
+                    if ((flags & MF.SOURCE_READERF_ENDOFSTREAM) != 0) break;
                 }
                 return info;
             }
