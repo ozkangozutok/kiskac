@@ -83,6 +83,18 @@ namespace Kiskac
             return n > 0 && !char.IsControl(sb[0]);
         }
 
+        // Tam ekran video kısayolu: aynı tuş + Shift (PrtSc → Shift+PrtSc). Kısayolda zaten Shift varsa
+        // ya da Shift'li hâli standart bir kısayola denk geliyorsa yoktur.
+        public HotKey? VideoVariant
+        {
+            get
+            {
+                if ((Mods & Mods.Shift) != 0) return null;
+                var v = new HotKey(Vk, Mods | Mods.Shift);
+                return v.Problem == null ? v : (HotKey?)null;
+            }
+        }
+
         public string KeyName
         {
             get

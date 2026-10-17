@@ -21,7 +21,7 @@ namespace Kiskac
         readonly ToolStripMenuItem captureItem;
         readonly ToolStripMenuItem updateItem;
         readonly Updater updater;
-        readonly ToolStripMenuItem videoItem;
+        readonly ToolStripMenuItem videoItem, fullScreenItem;
         volatile bool exiting;
         volatile bool capturing;
         OverlayForm overlay;
@@ -46,6 +46,10 @@ namespace Kiskac
                 else StartCaptureDelayed(true);
             });
             menu.Items.Add(videoItem);
+            fullScreenItem = new ToolStripMenuItem("Tam ekran video");
+            fullScreenItem.DropDownItems.Add("-"); // alt menü açılırken ekranlarla doldurulur
+            fullScreenItem.DropDownOpening += delegate { FillFullScreenMenu(); };
+            menu.Items.Add(fullScreenItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Kayıt klasörünü aç", null, delegate
             {
@@ -71,6 +75,7 @@ namespace Kiskac
                 captureItem.ShortcutKeyDisplayString = hook.HotKey.Display;
                 videoItem.Text = recorder != null ? "Kaydı durdur" : "Video kaydet…";
                 videoItem.ShortcutKeyDisplayString = recorder != null ? hook.HotKey.Display : "";
+                fullScreenItem.Visible = recorder == null;
             };
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Çıkış", null, delegate { ExitThread(); });
@@ -94,6 +99,7 @@ namespace Kiskac
             SystemEvents.SessionEnding += OnSessionEnding;
 
             hook = new KeyboardHook(Settings.HotKey, () => { if (!exiting) invoker.BeginInvoke(new Action(StartCapture)); });
+            hook.VideoAction = () => { if (!exiting) invoker.BeginInvoke(new Action(ToggleFullScreenRecording)); };
 
             updater = new Updater(invoker, ExitThread);
             updater.CanInterrupt = () => overlay == null && !capturing && recorder == null;
@@ -240,6 +246,58 @@ namespace Kiskac
 
         // ---------------------------------------------------------------- video kaydı
 
+        // Shift+kısayol: imlecin bulunduğu ekranı seçim ekranı olmadan kaydetmeye başlar; kayıt sürüyorsa durdurur.
+        void ToggleFullScreenRecording()
+        {
+            if (recorder != null)
+            {
+                StopRecording();
+                return;
+            }
+            if (overlay != null && !overlay.IsDisposed) return; // seçim ekranı açıkken karışmasın
+            StartRecording(Screen.FromPoint(Cursor.Position).Bounds, VideoFormat.Mp4);
+        }
+
+        void FillFullScreenMenu()
+        {
+            var items = fullScreenItem.DropDownItems;
+            items.Clear();
+            var video = hook.HotKey.VideoVariant;
+            var current = new ToolStripMenuItem("İmlecin bulunduğu ekran", null, delegate
+            {
+                StartRecordingDelayed(Screen.FromPoint(Cursor.Position).Bounds);
+            });
+            if (video.HasValue) current.ShortcutKeyDisplayString = video.Value.Display;
+            items.Add(current);
+
+            var screens = Screen.AllScreens;
+            if (screens.Length > 1)
+            {
+                items.Add(new ToolStripSeparator());
+                for (int i = 0; i < screens.Length; i++)
+                {
+                    var b = screens[i].Bounds;
+                    string text = "Ekran " + (i + 1) + "  —  " + b.Width + "×" + b.Height + (screens[i].Primary ? " (ana)" : "");
+                    items.Add(text, null, delegate { StartRecordingDelayed(b); });
+                }
+                var all = SystemInformation.VirtualScreen;
+                items.Add("Tüm ekranlar  —  " + all.Width + "×" + all.Height, null, delegate { StartRecordingDelayed(all); });
+            }
+        }
+
+        // Menüden başlatınca menünün kapanma animasyonu kayda girmesin.
+        void StartRecordingDelayed(Rectangle region)
+        {
+            var t = new System.Windows.Forms.Timer { Interval = 250 };
+            t.Tick += delegate
+            {
+                t.Stop();
+                t.Dispose();
+                StartRecording(region, VideoFormat.Mp4);
+            };
+            t.Start();
+        }
+
         void StartRecording(Rectangle region, VideoFormat format)
         {
             if (recorder != null || exiting) return;
@@ -266,15 +324,17 @@ namespace Kiskac
                 catch (InvalidOperationException) { }
             };
 
-            recBorder = new RecordingBorder(region);
+            // Bir ekranın tamamı kaydediliyorsa çerçeve gereksiz; yan ekranlara taşar da.
+            bool wholeScreen = Array.Exists(Screen.AllScreens, s => region.Contains(s.Bounds));
+            recBorder = wholeScreen ? null : new RecordingBorder(region);
             recBar = new RecordingBar(rec);
             recBar.PauseClicked += delegate
             {
                 rec.Paused = !rec.Paused;
-                recBorder.Paused = rec.Paused;
+                if (recBorder != null) recBorder.Paused = rec.Paused;
             };
             recBar.StopClicked += delegate { StopRecording(); };
-            recBorder.Show();
+            if (recBorder != null) recBorder.Show();
             recBar.Show();
 
             recorder = rec;

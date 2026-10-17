@@ -95,6 +95,7 @@ Kısayola bastığında ekran kararır. Alanı sürükleyerek seç (tek tıklama
 | Kalınlık | fare tekerleği | kaydırma |
 | Metinde yeni satır | `Shift+Enter` | `⇧↩` |
 | Video (MP4) · GIF kaydet | `V` · `G` (yalnızca Windows) | — |
+| Tam ekran video başlat / durdur | `Shift+PrtSc` (yalnızca Windows) | — |
 
 Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü alır.
 
@@ -105,6 +106,8 @@ Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü 
 3. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
 
 Kayıt *Videolar › Kıskaç* klasörüne kaydedilir; bildirime tıklayınca dosya klasörde gösterilir.
+
+**Tam ekran:** seçim yapmadan **Shift+PrtSc**'ye bas; imlecin bulunduğu ekran hemen kaydedilmeye başlar, aynı tuş kaydı durdurur. Tepsi menüsündeki **Tam ekran video** alt menüsünden belirli bir ekranı ya da tüm ekranları da seçebilirsin. (Kısayolu değiştirdiysen tam ekran kısayolu onun Shift'li hâlidir.)
 
 - **MP4:** H.264 video, AAC ses. Ses kaynağı Ayarlar'dan seçilir: sistem sesi (varsayılan), mikrofon, ikisi ya da yok.
 - **GIF:** ses yoktur; kısa klipler içindir. En uzun kenarı 1280 piksele küçültülür, varsayılan hız 10 kare/sn.

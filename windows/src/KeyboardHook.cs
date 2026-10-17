@@ -15,7 +15,15 @@ namespace Kiskac
         uint threadId;
         volatile object hotKey; // kutulanmış HotKey: kanca iş parçacığı kilitsiz okur
         volatile Action<HotKey> recorder;
+        volatile Action videoAction;
         bool pressed;
+
+        // Kısayol + Shift basılınca çağrılır (kanca iş parçacığında).
+        public Action VideoAction
+        {
+            get { return videoAction; }
+            set { videoAction = value; }
+        }
 
         public bool Installed { get; private set; }
 
@@ -84,13 +92,22 @@ namespace Kiskac
                 if (vk == hk.Vk)
                 {
                     // Değiştiriciler birebir tutmalı: PrtSc seçiliyken Alt+PrtSc, Win+PrtSc Windows'a kalır.
-                    if (down && HotKey.CurrentMods() == hk.Mods)
+                    // Aynı tuş + Shift tam ekran video kaydını başlatır/durdurur.
+                    Action action = null;
+                    if (down)
+                    {
+                        var mods = HotKey.CurrentMods();
+                        var video = hk.VideoVariant;
+                        if (mods == hk.Mods) action = onHotKey;
+                        else if (video.HasValue && mods == video.Value.Mods) action = videoAction;
+                    }
+                    if (action != null)
                     {
                         if (!pressed)
                         {
                             pressed = true; // basılı tutunca tekrar tekrar tetiklenmesin
-                            Util.Log("Kısayol yakalandı: " + hk.Display);
-                            try { onHotKey(); }
+                            Util.Log("Kısayol yakalandı: " + (action == onHotKey ? hk.Display : "tam ekran video"));
+                            try { action(); }
                             catch { }
                         }
                         return (IntPtr)1; // tuşu yut: Ekran Alıntısı Aracı vb. tetiklenmesin

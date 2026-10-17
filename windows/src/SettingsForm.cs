@@ -138,7 +138,10 @@ namespace Kiskac
             AddFull(g, Check("Fare imlecini kayda dahil et", Settings.RecordCursor, v => Settings.RecordCursor = v));
             AddFull(g, new Label
             {
-                Text = "Kaydı durdurmak için kontrol çubuğundaki ■ düğmesine ya da yeniden " + Settings.HotKey.Display + " kısayoluna bas.",
+                Text = (Settings.HotKey.VideoVariant.HasValue
+                        ? Settings.HotKey.VideoVariant.Value.Display + " imlecin bulunduğu ekranı hemen kaydetmeye başlar. "
+                        : "Tam ekran video tepsi menüsünden başlatılır. ")
+                    + "Kaydı durdurmak için kontrol çubuğundaki ■ düğmesine ya da yeniden " + Settings.HotKey.Display + " kısayoluna bas.",
                 AutoSize = true,
                 MaximumSize = new Size(440, 0),
                 ForeColor = SystemColors.GrayText,

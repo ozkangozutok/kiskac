@@ -38,6 +38,9 @@ namespace Kiskac
                 check("Ctrl+Alt+Del engelli", new HotKey(0x2E, Mods.Ctrl | Mods.Alt).Problem != null);
                 check("Görünen ad Ctrl+Shift+X", ctrlShiftX.Display == "Ctrl+Shift+X");
                 check("Görünen ad PrtSc", HotKey.Default.Display == "PrtSc");
+                check("Tam ekran video kısayolu Shift+PrtSc", HotKey.Default.VideoVariant.HasValue
+                    && HotKey.Default.VideoVariant.Value.Display == "Shift+PrtSc");
+                check("Shift'li kısayolun tam ekran video kısayolu yok", !ctrlShiftX.VideoVariant.HasValue);
                 log.AppendLine("      Ctrl+Alt+Q (AltGr): " + (new HotKey('Q', Mods.Ctrl | Mods.Alt).Problem ?? "geçerli"));
                 log.AppendLine("      Ctrl+OEM1 adı: " + new HotKey(0xBA, Mods.Ctrl).Display);
 
