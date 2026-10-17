@@ -42,6 +42,8 @@ namespace Kiskac
 
         public void Start() { sw.Start(); }
 
+        public bool Running { get { return sw.IsRunning; } }
+
         public bool Paused
         {
             get { lock (gate) return paused; }

@@ -13,7 +13,9 @@ namespace Kiskac
 
         public static void Run(string dir, Check check, StringBuilder log, bool large)
         {
-            Gif(dir, check, log); // Media Foundation gerektirmez
+            // Media Foundation gerektirmeyenler
+            Resample(check, log);
+            Gif(dir, check, log);
 
             try
             {
@@ -71,6 +73,13 @@ namespace Kiskac
                 check(name + " boyut", info.Width == w && info.Height == h);
                 check(name + " süre", secs > 1.8 && secs < 2.3);
                 check(name + " ses akışı", info.HasAudio == audio);
+                if (audio)
+                {
+                    double asec, peak;
+                    Mp4Probe.ReadAudio(path, out asec, out peak);
+                    log.AppendLine("      ses: " + asec.ToString("0.00") + " sn, en yüksek genlik " + peak.ToString("0.000"));
+                    check(name + " ses süresi ve seviyesi", Math.Abs(asec - 2.0) < 0.15 && peak > 0.15 && peak < 0.35);
+                }
                 bool frameOk = info.FirstFrame != null;
                 if (frameOk)
                 {
@@ -91,6 +100,39 @@ namespace Kiskac
             {
                 try { File.Delete(path); } catch { }
             }
+        }
+
+        // 44,1 kHz'lik 1 kHz sinüs, küçük paketler halinde 48 kHz'e çevrilir: kare sayısı, genlik ve
+        // paket sınırlarında sıçrama olmaması denetlenir. (Mikrofonlar çoğu zaman 44,1 kHz çalışır.)
+        static void Resample(Check check, StringBuilder log)
+        {
+            var rs = new Resampler(44100, 48000);
+            var fifo = new FloatFifo();
+            var chunk = new float[441 * 2];
+            int t = 0;
+            for (int c = 0; c < 100; c++)
+            {
+                for (int i = 0; i < 441; i++, t++)
+                {
+                    float v = (float)(0.5 * Math.Sin(2 * Math.PI * 1000 * t / 44100.0));
+                    chunk[i * 2] = v;
+                    chunk[i * 2 + 1] = -v;
+                }
+                rs.Process(chunk, 441, fifo);
+            }
+            int frames = fifo.Frames;
+            var mix = new float[frames * 2];
+            fifo.MixInto(mix, frames);
+            float peak = 0, jump = 0;
+            for (int i = 0; i < frames; i++)
+            {
+                peak = Math.Max(peak, Math.Abs(mix[i * 2]));
+                if (i > 0) jump = Math.Max(jump, Math.Abs(mix[i * 2] - mix[i * 2 - 2]));
+            }
+            log.AppendLine("      Yeniden örnekleme 44,1→48 kHz: " + frames + " kare, tepe " + peak.ToString("0.000") + ", en büyük adım " + jump.ToString("0.000"));
+            check("Yeniden örnekleme kare sayısı", Math.Abs(frames - 48000) <= 3);
+            check("Yeniden örnekleme genliği ve sürekliliği", peak > 0.48 && peak <= 0.5 && jump < 0.075
+                && Math.Abs(mix[1] + mix[0]) < 1e-5);
         }
 
         // 4 kare yazılır; 2. kare 1.'nin, 4. kare 3.'nün aynısı → GIF'te 2 kare, her biri 200 ms olmalı.
@@ -284,6 +326,12 @@ namespace Kiskac
                     log.AppendLine("MP4: " + info.Width + "x" + info.Height + ", " + secs.ToString("0.00") + " sn, " + info.FrameCount + " kare ("
                         + (info.FrameCount / Math.Max(0.01, secs)).ToString("0.0") + " kare/sn), ses: " + info.HasAudio
                         + ", " + new FileInfo(path).Length / 1024 + " KB");
+                    if (info.HasAudio)
+                    {
+                        double asec, peak;
+                        Mp4Probe.ReadAudio(path, out asec, out peak);
+                        log.AppendLine("Ses: " + asec.ToString("0.00") + " sn, en yüksek genlik " + peak.ToString("0.000"));
+                    }
                     if (info.FirstFrame != null)
                         using (var bmp = new System.Drawing.Bitmap(info.Width, info.Height, System.Drawing.Imaging.PixelFormat.Format32bppRgb))
                         {

@@ -439,6 +439,72 @@ namespace Kiskac
     // Test ve doğrulama için: bir MP4'ün süresini, boyutunu ve ilk karesini okur.
     static class Mp4Probe
     {
+        // Ses akışını 16 bit PCM olarak çözer: toplam süre (sn) ve en yüksek genlik (0–1).
+        public static void ReadAudio(string path, out double seconds, out double peak)
+        {
+            seconds = 0;
+            peak = 0;
+            MF.Startup();
+            IMFSourceReader reader = null;
+            try
+            {
+                MF.MFCreateSourceReaderFromURL(path, null, out reader);
+                reader.SetStreamSelection(unchecked((int)0xFFFFFFFE) /* tüm akışlar */, false);
+                reader.SetStreamSelection(MF.SOURCE_READER_FIRST_AUDIO_STREAM, true);
+                IMFAttributes pcm;
+                MF.MFCreateMediaType(out pcm);
+                pcm.SetGUID(ref MF.MT_MAJOR_TYPE, ref MF.MediaType_Audio);
+                pcm.SetGUID(ref MF.MT_SUBTYPE, ref MF.AudioFormat_PCM);
+                pcm.SetUINT32(ref MF.MT_AUDIO_BITS_PER_SAMPLE, 16);
+                IntPtr p = MF.MediaTypePtr(pcm);
+                try { reader.SetCurrentMediaType(MF.SOURCE_READER_FIRST_AUDIO_STREAM, IntPtr.Zero, p); }
+                finally
+                {
+                    Marshal.Release(p);
+                    MF.Release(pcm);
+                }
+                IMFAttributes cur;
+                reader.GetCurrentMediaType(MF.SOURCE_READER_FIRST_AUDIO_STREAM, out cur);
+                int rate, ch;
+                cur.GetUINT32(ref MF.MT_AUDIO_SAMPLES_PER_SECOND, out rate);
+                cur.GetUINT32(ref MF.MT_AUDIO_NUM_CHANNELS, out ch);
+                MF.Release(cur);
+
+                long samples = 0;
+                int max = 0;
+                while (true)
+                {
+                    int actual, flags;
+                    long ts;
+                    IMFSample sample;
+                    reader.ReadSample(MF.SOURCE_READER_FIRST_AUDIO_STREAM, 0, out actual, out flags, out ts, out sample);
+                    if (sample != null)
+                    {
+                        IMFMediaBuffer buf;
+                        sample.ConvertToContiguousBuffer(out buf);
+                        IntPtr data;
+                        int cap, len;
+                        buf.Lock(out data, out cap, out len);
+                        var s = new short[len / 2];
+                        Marshal.Copy(data, s, 0, s.Length);
+                        buf.Unlock();
+                        MF.Release(buf);
+                        MF.Release(sample);
+                        foreach (short v in s) max = Math.Max(max, Math.Abs((int)v));
+                        samples += s.Length / ch;
+                    }
+                    if ((flags & MF.SOURCE_READERF_ENDOFSTREAM) != 0) break;
+                }
+                seconds = (double)samples / rate;
+                peak = max / 32768.0;
+            }
+            finally
+            {
+                MF.Release(reader);
+                MF.Shutdown();
+            }
+        }
+
         public sealed class Info
         {
             public long Duration; // 100 ns
