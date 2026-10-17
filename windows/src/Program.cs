@@ -19,6 +19,17 @@ namespace Kiskac
             if (args.Length == 2 && args[0] == "--selftest")
                 return SelfTest.Run(args[1]);
 
+            // Video kodlayıcıyı yapay karelerle elle denetle (kayıttaki gibi MTA iş parçacığında)
+            if (args.Length == 2 && args[0] == "--video-test")
+            {
+                int code = 1;
+                var t = new Thread(() => { code = VideoTest.RunCli(args[1]); });
+                t.SetApartmentState(ApartmentState.MTA);
+                t.Start();
+                t.Join();
+                return code;
+            }
+
             // Güncellemeden sonra: eski süreç kapanana kadar bekle, artıkları temizle.
             bool justUpdated = false;
             int oldPid;
