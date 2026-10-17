@@ -8,33 +8,51 @@ namespace Kiskac
     // Sistem sesi (WASAPI loopback) ve/veya mikrofonu yakalar, 48 kHz stereoya çevirip karıştırır ve MP4'e AAC olarak yazar.
     // Her paket, WASAPI'nin bildirdiği yakalanma zamanına göre ortak zaman çizelgesine yerleştirilir (AudioMixer):
     // veri gelmeyen anlar (ör. hiç ses çalmıyorken loopback paket göndermez) sessizlik olur ve ses görüntüden kaymaz.
-    // Tüm COM nesneleri kendi MTA iş parçacığındadır.
+    // Kaynaklar kayıt sırasında açılıp kapatılabilir (Mode): kapatılan kaynak hemen bırakılır (ör. mikrofon ışığı söner),
+    // yeniden açılan kaynağın sesi yine yakalanma zamanına göre yerleşir. Tüm COM nesneleri kendi MTA iş parçacığındadır.
     sealed class AudioRecorder : IDisposable
     {
         const int Rate = Mp4Writer.AudioRate;
         const long LatencyTicks = 1500000; // 150 ms: paketlerin gecikmeli gelmesine pay
 
-        readonly AudioMode mode;
         readonly RecordingClock clock;
         readonly Mp4Writer writer;
         readonly ManualResetEvent stop = new ManualResetEvent(false);
         readonly ManualResetEvent ready = new ManualResetEvent(false);
-        readonly List<AudioSource> sources = new List<AudioSource>();
         readonly AudioMixer mixer = new AudioMixer();
+        readonly List<string> problems = new List<string>();
         Thread thread;
-        string warning;
+        volatile int desired;            // AudioMode
+        volatile bool systemFailed, micFailed;
+        AudioSource system, mic;
 
         public AudioRecorder(AudioMode mode, RecordingClock clock, Mp4Writer writer)
         {
-            this.mode = mode;
+            desired = (int)mode;
             this.clock = clock;
             this.writer = writer;
         }
 
-        public bool Paused { get; set; }
+        // İstenen ses kaynakları; herhangi bir anda değiştirilebilir.
+        public AudioMode Mode
+        {
+            get { return (AudioMode)desired; }
+            set { desired = (int)value; }
+        }
 
-        // Kaynakları açar; sorun varsa kullanıcıya gösterilecek uyarıyı döner (kayıt yine de sürer).
-        public string Start()
+        // İstenip açılamayan kaynaklar
+        public AudioMode Failed
+        {
+            get { return (systemFailed ? AudioMode.System : AudioMode.None) | (micFailed ? AudioMode.Microphone : AudioMode.None); }
+        }
+
+        // Kullanıcıya gösterilecek uyarı (açılamayan kaynaklar), yoksa null
+        public string Warning
+        {
+            get { lock (problems) return problems.Count == 0 ? null : string.Join(" ", problems.ToArray()); }
+        }
+
+        public void Start()
         {
             thread = new Thread(Run);
             thread.SetApartmentState(ApartmentState.MTA);
@@ -42,7 +60,6 @@ namespace Kiskac
             thread.Name = "Kıskaç ses kaydı";
             thread.Start();
             ready.WaitOne(5000);
-            return warning;
         }
 
         public void Stop()
@@ -53,10 +70,7 @@ namespace Kiskac
 
         void Run()
         {
-            var problems = new List<string>();
-            if (mode == AudioMode.System || mode == AudioMode.Both) Open(true, problems);
-            if (mode == AudioMode.Microphone || mode == AudioMode.Both) Open(false, problems);
-            if (problems.Count > 0) warning = string.Join(" ", problems.ToArray());
+            Sync();
             ready.Set();
 
             var pcm = new short[Rate * 2];
@@ -66,8 +80,10 @@ namespace Kiskac
                 while (true)
                 {
                     bool stopping = stop.WaitOne(10);
+                    Sync();
                     // Paketler yakalanma zamanlarıyla yerleşir; kayıt öncesi ve duraklama sırasındakiler atılır.
-                    foreach (var s in sources) s.Drain(clock, mixer.Produced);
+                    if (system != null) system.Drain(clock, mixer.Produced);
+                    if (mic != null) mic.Drain(clock, mixer.Produced);
 
                     // Duraklamada Now donar, karıştırıcı bekler; tampondaki ses devam edince yazılır.
                     long target = clock.Now - (stopping ? 0 : LatencyTicks);
@@ -92,27 +108,52 @@ namespace Kiskac
             finally
             {
                 handle.Free();
-                foreach (var s in sources) s.Dispose();
-                sources.Clear();
+                Close(ref system);
+                Close(ref mic);
             }
         }
 
-        void Open(bool loopback, List<string> problems)
+        // İstenen kaynakları açar, istenmeyenleri kapatır. Açılamayan kaynak, kullanıcı kapatıp yeniden açana kadar denenmez.
+        void Sync()
         {
+            var m = (int)Mode;
+            bool sys = (m & (int)AudioMode.System) != 0, mc = (m & (int)AudioMode.Microphone) != 0;
+
+            if (!sys) { Close(ref system); systemFailed = false; }
+            else if (system == null && !systemFailed) systemFailed = !Open(true, out system);
+
+            if (!mc) { Close(ref mic); micFailed = false; }
+            else if (mic == null && !micFailed) micFailed = !Open(false, out mic);
+        }
+
+        bool Open(bool loopback, out AudioSource source)
+        {
+            source = null;
             try
             {
-                var s = new AudioSource(loopback);
-                sources.Add(s);
-                mixer.Add(s.Track);
+                source = new AudioSource(loopback);
+                mixer.Add(source.Track);
+                return true;
             }
             catch (Exception ex)
             {
                 Util.Log((loopback ? "Sistem sesi" : "Mikrofon") + " açılamadı: " + ex);
-                if (loopback) problems.Add("Sistem sesi kaydedilemedi.");
+                string p;
+                if (loopback) p = "Sistem sesi kaydedilemedi.";
                 else if (ex is UnauthorizedAccessException || (uint)Marshal.GetHRForException(ex) == 0x80070005)
-                    problems.Add("Mikrofona erişim izni yok (Ayarlar › Gizlilik › Mikrofon).");
-                else problems.Add("Mikrofon bulunamadı.");
+                    p = "Mikrofona erişim izni yok (Ayarlar › Gizlilik › Mikrofon).";
+                else p = "Mikrofon bulunamadı.";
+                lock (problems) if (!problems.Contains(p)) problems.Add(p);
+                return false;
             }
+        }
+
+        void Close(ref AudioSource source)
+        {
+            if (source == null) return;
+            mixer.Remove(source.Track);
+            source.Dispose();
+            source = null;
         }
 
         public void Dispose()
@@ -336,6 +377,11 @@ namespace Kiskac
         public void Add(AudioTrack t)
         {
             tracks.Add(t);
+        }
+
+        public void Remove(AudioTrack t)
+        {
+            tracks.Remove(t);
         }
 
         public void Mix(int need, short[] pcm)

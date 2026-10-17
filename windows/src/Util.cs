@@ -258,6 +258,9 @@ namespace Kiskac
 
         public static bool RecordCursor { get { return GetBool("RecordCursor", true); } set { SetBool("RecordCursor", value); } }
 
+        // Kayıt başlamadan 3 saniye geri say (bu sırada ses kaynakları seçilebilir)
+        public static bool RecordCountdown { get { return GetBool("RecordCountdown", true); } set { SetBool("RecordCountdown", value); } }
+
         public static AudioMode RecordAudio
         {
             get { return (AudioMode)Math.Max(0, Math.Min(3, GetInt("RecordAudio", (int)AudioMode.System))); }

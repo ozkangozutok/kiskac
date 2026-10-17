@@ -29,6 +29,7 @@ namespace Kiskac
         ScreenRecorder recorder;
         RecordingBorder recBorder;
         RecordingBar recBar;
+        bool recStarted; // geri sayım bitti mi
         string balloonPath; // bildirime tıklanınca klasörde gösterilecek dosya
 
         public TrayContext(bool justUpdated)
@@ -334,31 +335,60 @@ namespace Kiskac
                 if (recBorder != null) recBorder.Paused = rec.Paused;
             };
             recBar.StopClicked += delegate { StopRecording(); };
-            if (recBorder != null) recBorder.Show();
-            recBar.Show();
-
+            recBar.AudioChanged += mode =>
+            {
+                rec.SetAudio(mode);
+                Settings.RecordAudio = mode; // son seçim hatırlanır
+            };
+            // Geri sayım bitince (ya da "şimdi başla") kayıt gerçekten başlar.
+            recBar.Begin += delegate
+            {
+                if (recorder != rec) return;
+                recStarted = true;
+                if (recBorder != null) recBorder.Paused = false;
+                tray.Text = "Kıskaç — kaydediliyor (" + hook.HotKey.Display + ": durdur)";
+                if (tray.Text.Length > 63) tray.Text = tray.Text.Substring(0, 63);
+                rec.Start();
+                Util.Log("Kayıt başladı: " + region + " " + format + " → " + path);
+            };
+            if (recBorder != null)
+            {
+                recBorder.Paused = true; // geri sayımda sarı
+                recBorder.Show();
+            }
             recorder = rec;
-            tray.Text = "Kıskaç — kaydediliyor (" + hook.HotKey.Display + ": durdur)";
-            if (tray.Text.Length > 63) tray.Text = tray.Text.Substring(0, 63);
-            rec.Start();
-            Util.Log("Kayıt başladı: " + region + " " + format + " → " + path);
+            recStarted = false;
+            recBar.Show();
+            recBar.StartCountdown(Settings.RecordCountdown ? 3 : 0);
         }
 
         void StopRecording()
         {
             if (recorder == null) return;
+            if (!recStarted)
+            {
+                // Geri sayım sırasında: iptal, dosya oluşmaz.
+                CloseRecordingUi();
+                recorder = null;
+                return;
+            }
             recorder.Stop();
             if (recBorder != null) recBorder.Hide();
             if (recBar != null) recBar.ShowStopping();
+        }
+
+        void CloseRecordingUi()
+        {
+            if (recBorder != null) { recBorder.Close(); recBorder = null; }
+            if (recBar != null) { recBar.Close(); recBar = null; }
+            tray.Text = TrayText(hook.HotKey);
         }
 
         void OnRecordingFinished(ScreenRecorder rec, string path, Exception error)
         {
             if (rec != recorder) return;
             recorder = null;
-            if (recBorder != null) { recBorder.Close(); recBorder = null; }
-            if (recBar != null) { recBar.Close(); recBar = null; }
-            tray.Text = TrayText(hook.HotKey);
+            CloseRecordingUi();
             if (exiting) return;
 
             if (error != null)

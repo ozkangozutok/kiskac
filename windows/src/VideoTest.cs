@@ -404,8 +404,19 @@ namespace Kiskac
                 var rec = new ScreenRecorder(o);
                 Exception err = null;
                 rec.Finished += (p, e) => { err = e; };
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                int total = (int)(double.Parse(a[2], inv) * 1000);
                 rec.Start();
-                System.Threading.Thread.Sleep((int)(double.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture) * 1000));
+                if (a.Length == 10)
+                {
+                    var sw = a[9].Split('@');
+                    int at = (int)(double.Parse(sw[1], inv) * 1000);
+                    System.Threading.Thread.Sleep(at);
+                    rec.SetAudio((AudioMode)int.Parse(sw[0]));
+                    log.AppendLine("Ses kaynağı " + at + " ms'de " + (AudioMode)int.Parse(sw[0]) + " yapıldı");
+                    total -= at;
+                }
+                System.Threading.Thread.Sleep(Math.Max(0, total));
                 rec.Stop();
                 rec.Wait(30000);
                 log.AppendLine("Hata: " + (err == null ? "yok" : err.ToString()));

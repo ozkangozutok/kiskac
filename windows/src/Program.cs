@@ -32,7 +32,8 @@ namespace Kiskac
 
             // Arayüzsüz gerçek ekran kaydı (geliştirme ve doğrulama için):
             // --record <dosya> <saniye> <x> <y> <gen> <yük> <mp4|gif> <ses 0-3>  → <dosya>.log
-            if (args.Length == 9 && args[0] == "--record")
+            // İsteğe bağlı 10. değer "<ses>@<saniye>": kayıt sırasında ses kaynağını değiştir (ör. 2@2.5)
+            if ((args.Length == 9 || args.Length == 10) && args[0] == "--record")
                 return VideoTest.RecordCli(args);
 
             // Güncellemeden sonra: eski süreç kapanana kadar bekle, artıkları temizle.

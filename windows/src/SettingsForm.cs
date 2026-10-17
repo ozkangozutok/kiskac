@@ -136,6 +136,7 @@ namespace Kiskac
             AddRow(g, "GIF kare hızı", gifFps);
 
             AddFull(g, Check("Fare imlecini kayda dahil et", Settings.RecordCursor, v => Settings.RecordCursor = v));
+            AddFull(g, Check("Başlamadan önce 3 saniye geri say (bu sırada sesi açıp kapatabilirsin)", Settings.RecordCountdown, v => Settings.RecordCountdown = v));
             AddFull(g, new Label
             {
                 Text = (Settings.HotKey.VideoVariant.HasValue

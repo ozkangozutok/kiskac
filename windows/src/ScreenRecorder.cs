@@ -120,28 +120,45 @@ namespace Kiskac
         readonly RecordingClock clock = new RecordingClock();
         readonly ManualResetEvent stopSignal = new ManualResetEvent(false);
         Thread thread;
-        AudioRecorder audio;
+        volatile AudioRecorder audio;
+        volatile int audioMode; // AudioMode; kayıt sırasında değişebilir
 
         // İş parçacığından çağrılır: (dosya yolu, hata). Hata yoksa ikincisi null.
         public event Action<string, Exception> Finished;
 
         public RecordingOptions Options { get { return options; } }
         public TimeSpan Elapsed { get { return TimeSpan.FromTicks(clock.Now); } }
-        public string Warning { get; private set; }
+
+        public string Warning
+        {
+            get { var a = audio; return a == null ? null : a.Warning; }
+        }
+
+        // İstenip açılamayan ses kaynakları (çubukta turuncu gösterilir)
+        public AudioMode FailedAudio
+        {
+            get { var a = audio; return a == null ? AudioMode.None : a.Failed; }
+        }
+
+        // Ses kaynaklarını kayıt öncesinde ya da sırasında değiştirir (yalnızca MP4).
+        public void SetAudio(AudioMode mode)
+        {
+            audioMode = (int)mode;
+            options.Audio = mode;
+            var a = audio;
+            if (a != null) a.Mode = mode;
+        }
 
         public bool Paused
         {
             get { return clock.Paused; }
-            set
-            {
-                clock.Paused = value;
-                if (audio != null) audio.Paused = value;
-            }
+            set { clock.Paused = value; }
         }
 
         public ScreenRecorder(RecordingOptions options)
         {
             this.options = options;
+            audioMode = (int)options.Audio;
         }
 
         public void Start()
@@ -179,11 +196,14 @@ namespace Kiskac
                 sink = CreateSink(temp);
                 capture.Init(options.Region, sink.Width, sink.Height, options.Cursor);
 
+                // MP4'te ses akışı her zaman vardır: kaynaklar kayıt sırasında açılıp kapatılabilsin (kapalıyken sessizlik).
                 var mp4 = sink as Mp4Sink;
                 if (mp4 != null && mp4.Writer.HasAudio)
                 {
-                    audio = new AudioRecorder(options.Audio, clock, mp4.Writer);
-                    Warning = audio.Start();
+                    var a = new AudioRecorder((AudioMode)audioMode, clock, mp4.Writer);
+                    audio = a;
+                    a.Mode = (AudioMode)audioMode; // oluşturulurken değiştiyse
+                    a.Start();
                 }
 
                 long frameDur = 10000000L / options.Fps;
@@ -246,7 +266,7 @@ namespace Kiskac
                 return new GifSink(path, s.Width, s.Height);
             }
 
-            bool withAudio = options.Audio != AudioMode.None;
+            const bool withAudio = true; // bkz. Run: ses kaynakları kayıt sırasında açılabilir
             var full = Fit(r.Width, r.Height, int.MaxValue, int.MaxValue, true);
             try
             {

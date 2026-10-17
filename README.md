@@ -102,14 +102,15 @@ Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü 
 ### Video ve GIF kaydı (Windows)
 
 1. Kısayola bas (ya da tepsi menüsünden **Video kaydet…**'i seç) ve kaydedilecek alanı seç.
-2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde kırmızı bir çerçeve, altında süreyi gösteren küçük bir çubuk belirir.
-3. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
+2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde bir çerçeve ve altında küçük bir kontrol çubuğu belirir; kayıt **3 saniye geri saydıktan sonra** başlar.
+3. Geri sayım sırasında (ve kayıt boyunca) çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapatabilirsin; seçimin bir sonraki kayıt için hatırlanır. Beklemeden başlamak için **●**, vazgeçmek için **✕**.
+4. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
 
 Kayıt *Videolar › Kıskaç* klasörüne kaydedilir; bildirime tıklayınca dosya klasörde gösterilir.
 
 **Tam ekran:** seçim yapmadan **Shift+PrtSc**'ye bas; imlecin bulunduğu ekran hemen kaydedilmeye başlar, aynı tuş kaydı durdurur. Tepsi menüsündeki **Tam ekran video** alt menüsünden belirli bir ekranı ya da tüm ekranları da seçebilirsin. (Kısayolu değiştirdiysen tam ekran kısayolu onun Shift'li hâlidir.)
 
-- **MP4:** H.264 video, AAC ses. Ses kaynağı Ayarlar'dan seçilir: sistem sesi (varsayılan), mikrofon, ikisi ya da yok.
+- **MP4:** H.264 video, AAC ses. Varsayılan ses kaynağı (sistem sesi, mikrofon, ikisi ya da yok) Ayarlar'dan da seçilir. Geri sayımı Ayarlar'dan kapatabilirsin.
 - **GIF:** ses yoktur; kısa klipler içindir. En uzun kenarı 1280 piksele küçültülür, varsayılan hız 10 kare/sn.
 - Çerçeve ve kontrol çubuğu kayda girmez. Fare imleci kayda girer (Ayarlar'dan kapatılabilir).
 
