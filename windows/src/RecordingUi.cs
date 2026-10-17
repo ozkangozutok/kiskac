@@ -44,7 +44,7 @@ namespace Kiskac
             Recording.ExcludeFromCapture(Handle);
         }
 
-        // Sarı: geri sayım ya da duraklatma; kırmızı: kayıt
+        // Sarı: hazır, geri sayım ya da duraklatma; kırmızı: kayıt
         public bool Paused
         {
             set
@@ -67,12 +67,13 @@ namespace Kiskac
         }
     }
 
-    // Kayıt çubuğu. Önce geri sayar (bu sırada ses kaynakları seçilebilir, hemen başlatılabilir ya da iptal edilebilir),
+    // Kayıt çubuğu. Önce "Hazır" bekler (ses ayarlanır, ▶ ile başlatılır ya da iptal edilir), ▶ sonrası geri sayar,
     // sonra süreyi, ses düğmelerini, duraklat ve durdur düğmelerini gösterir. Odak çalmaz, boş yerinden sürüklenir.
     sealed class RecordingBar : Form
     {
         enum Btn { None, System, Mic, Pause, Stop }
-        enum State { Countdown, Recording, Stopping }
+        // Ready: ▶'ye basılmasını bekler (bu sırada ses ayarlanır); Countdown: ▶ sonrası geri sayım
+        enum State { Ready, Countdown, Recording, Stopping }
 
         readonly ScreenRecorder recorder;
         readonly Rectangle region;
@@ -83,7 +84,7 @@ namespace Kiskac
         Font timeFont, smallFont, glyphFont;
         Rectangle sysRect, micRect, pauseRect, stopRect;
         Btn hover;
-        State state = State.Countdown;
+        State state = State.Ready;
         DateTime countdownEnd;
         bool blink;
         AudioMode audio;
@@ -122,10 +123,19 @@ namespace Kiskac
             timer.Tick += delegate { OnTick(); };
         }
 
-        public bool Counting { get { return state == State.Countdown; } }
+        // ▶'ye basılınca kaç saniye geri sayılacağı (0: hemen başlar)
+        public int CountdownSeconds = 3;
+
+        public bool IsReady { get { return state == State.Ready; } }
+
+        // ▶: geri sayımı başlatır (Shift+kısayol da bunu çağırır)
+        public void Play()
+        {
+            if (state == State.Ready) StartCountdown(CountdownSeconds);
+        }
 
         // seconds <= 0: geri saymadan hemen başlar
-        public void StartCountdown(int seconds)
+        void StartCountdown(int seconds)
         {
             countdownEnd = DateTime.UtcNow.AddSeconds(seconds);
             state = State.Countdown;
@@ -230,10 +240,12 @@ namespace Kiskac
             return Btn.None;
         }
 
-        // İpucu ayrı bir pencere olduğu için kayda girebilir: yalnızca geri sayımda gösterilir.
+        // İpucu ayrı bir pencere olduğu için kayda girebilir: yalnızca kayıt başlamadan gösterilir.
         string TipFor(Btn b)
         {
-            if (state != State.Countdown) return null;
+            if (state != State.Ready && state != State.Countdown) return null;
+            if (b == Btn.Pause && state == State.Ready)
+                return CountdownSeconds > 0 ? "Başlat (" + CountdownSeconds + " sn geri sayar)" : "Başlat";
             switch (b)
             {
                 case Btn.System: return (Has(audio, AudioMode.System) ? "Sistem sesi açık, %" + sysVolume : "Sistem sesi kapalı")
@@ -241,7 +253,7 @@ namespace Kiskac
                 case Btn.Mic: return (Has(audio, AudioMode.Microphone) ? "Mikrofon açık, %" + micVolume : "Mikrofon kapalı")
                     + "  •  tıkla: aç/kapat, tekerlek: seviye";
                 case Btn.Pause: return state == State.Countdown ? "Şimdi başla" : recorder.Paused ? "Devam et" : "Duraklat";
-                case Btn.Stop: return state == State.Countdown ? "İptal" : "Durdur ve kaydet";
+                case Btn.Stop: return "İptal";
             }
             return null;
         }
@@ -262,7 +274,7 @@ namespace Kiskac
             int d = S(12);
             var dot = new Rectangle(S(14), (Height - d) / 2, d, d);
             Color dotColor = state == State.Stopping ? Color.Gray
-                : state == State.Countdown || paused ? Color.FromArgb(255, 190, 0)
+                : state == State.Ready || state == State.Countdown || paused ? Color.FromArgb(255, 190, 0)
                 : blink ? Color.FromArgb(235, 45, 45) : Color.FromArgb(150, 40, 40);
             using (var br = new SolidBrush(dotColor))
                 g.FillEllipse(br, dot);
@@ -282,6 +294,12 @@ namespace Kiskac
                 var sz = TextRenderer.MeasureText(parts[0], timeFont);
                 TextRenderer.DrawText(g, parts[1], smallFont, new Rectangle(textRect.X + sz.Width - S(4), 0, textRect.Width - sz.Width, Height),
                     gray, flags | TextFormatFlags.EndEllipsis);
+            }
+            else if (state == State.Ready)
+            {
+                TextRenderer.DrawText(g, "Hazır", timeFont, textRect, white, flags);
+                var sz = TextRenderer.MeasureText("Hazır", timeFont);
+                TextRenderer.DrawText(g, hasAudio ? "MP4" : "GIF", smallFont, new Rectangle(textRect.X + sz.Width - S(4), 0, S(36), Height), gray, flags);
             }
             else if (state == State.Countdown)
             {
@@ -326,11 +344,22 @@ namespace Kiskac
             }
 
             // başlat/duraklat ve durdur/iptal
-            if (state == State.Countdown)
+            if (state == State.Ready || state == State.Countdown)
             {
                 int c = S(12);
-                using (var red = new SolidBrush(Color.FromArgb(235, 45, 45)))
-                    g.FillEllipse(red, pauseRect.X + (pauseRect.Width - c) / 2, pauseRect.Y + (pauseRect.Height - c) / 2, c, c);
+                if (state == State.Ready)
+                {
+                    // ▶ Başlat: yeşil üçgen
+                    float cx = pauseRect.X + pauseRect.Width / 2f + S(1), cy = pauseRect.Y + pauseRect.Height / 2f;
+                    using (var green = new SolidBrush(Color.FromArgb(70, 200, 110)))
+                        g.FillPolygon(green, new[]
+                        {
+                            new PointF(cx - S(5), cy - S(7)), new PointF(cx - S(5), cy + S(7)), new PointF(cx + S(7), cy)
+                        });
+                }
+                else
+                    using (var red = new SolidBrush(Color.FromArgb(235, 45, 45)))
+                        g.FillEllipse(red, pauseRect.X + (pauseRect.Width - c) / 2, pauseRect.Y + (pauseRect.Height - c) / 2, c, c);
                 TextRenderer.DrawText(g, "", glyphFont, stopRect, white, center);
             }
             else
@@ -408,7 +437,8 @@ namespace Kiskac
                     ToggleAudio(AudioMode.Microphone);
                     break;
                 case Btn.Pause:
-                    if (state == State.Countdown) BeginNow();
+                    if (state == State.Ready) Play();
+                    else if (state == State.Countdown) BeginNow();
                     else if (PauseClicked != null) PauseClicked(this, EventArgs.Empty);
                     break;
                 case Btn.Stop:

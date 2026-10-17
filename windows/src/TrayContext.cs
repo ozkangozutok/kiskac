@@ -247,12 +247,14 @@ namespace Kiskac
 
         // ---------------------------------------------------------------- video kaydı
 
-        // Shift+kısayol: imlecin bulunduğu ekranı seçim ekranı olmadan kaydetmeye başlar; kayıt sürüyorsa durdurur.
+        // Shift+kısayol: imlecin bulunduğu ekran için kayıt çubuğunu açar; çubuk hazırken ▶ gibi başlatır,
+        // kayıt sürüyorsa durdurur.
         void ToggleFullScreenRecording()
         {
             if (recorder != null)
             {
-                StopRecording();
+                if (!recStarted && recBar != null && recBar.IsReady) recBar.Play();
+                else StopRecording();
                 return;
             }
             if (overlay != null && !overlay.IsDisposed) return; // seçim ekranı açıkken karışmasın
@@ -366,8 +368,9 @@ namespace Kiskac
             }
             recorder = rec;
             recStarted = false;
+            // Çubuk "Hazır" açılır; kayıt ▶'ye basılınca (geri sayımdan sonra) başlar.
+            recBar.CountdownSeconds = Settings.RecordCountdown ? 3 : 0;
             recBar.Show();
-            recBar.StartCountdown(Settings.RecordCountdown ? 3 : 0);
         }
 
         void StopRecording()

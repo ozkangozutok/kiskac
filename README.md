@@ -102,13 +102,14 @@ Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü 
 ### Video ve GIF kaydı (Windows)
 
 1. Kısayola bas (ya da tepsi menüsünden **Video kaydet…**'i seç) ve kaydedilecek alanı seç.
-2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde bir çerçeve ve altında küçük bir kontrol çubuğu belirir; kayıt **3 saniye geri saydıktan sonra** başlar.
-3. Geri sayım sırasında (ve kayıt boyunca) çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapatabilirsin. Simgenin üzerinde **fare tekerleği** o kaynağın ses seviyesini değiştirir (%0–%200); yanındaki küçük gösterge sesin gelip gelmediğini gösterir. Seçimlerin bir sonraki kayıt için hatırlanır. Beklemeden başlamak için **●**, vazgeçmek için **✕**.
-4. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
+2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde bir çerçeve ve altında küçük bir kontrol çubuğu belirir; çubuk **Hazır** durumda bekler.
+3. İstersen çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapat. Simgenin üzerinde **fare tekerleği** o kaynağın ses seviyesini değiştirir (%0–%200); yanındaki küçük gösterge sesin gelip gelmediğini gösterir. Bunlar kayıt boyunca da çalışır ve bir sonraki kayıt için hatırlanır.
+4. **▶ Başlat**'a bas: 3 saniye geri sayılır ve kayıt başlar (geri sayımda ● beklemeden başlatır). Vazgeçmek için **✕**.
+5. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
 
 Kayıt *Videolar › Kıskaç* klasörüne kaydedilir; bildirime tıklayınca dosya klasörde gösterilir.
 
-**Tam ekran:** seçim yapmadan **Shift+PrtSc**'ye bas; imlecin bulunduğu ekran hemen kaydedilmeye başlar, aynı tuş kaydı durdurur. Tepsi menüsündeki **Tam ekran video** alt menüsünden belirli bir ekranı ya da tüm ekranları da seçebilirsin. (Kısayolu değiştirdiysen tam ekran kısayolu onun Shift'li hâlidir.)
+**Tam ekran:** seçim yapmadan **Shift+PrtSc**'ye bas; imlecin bulunduğu ekran için kayıt çubuğu açılır. **▶**'ye (ya da yeniden Shift+PrtSc'ye) basınca kayıt başlar, aynı tuş kaydı durdurur. Tepsi menüsündeki **Tam ekran video** alt menüsünden belirli bir ekranı ya da tüm ekranları da seçebilirsin. (Kısayolu değiştirdiysen tam ekran kısayolu onun Shift'li hâlidir.)
 
 - **MP4:** H.264 video, AAC ses. Varsayılan ses kaynağı (sistem sesi, mikrofon, ikisi ya da yok) Ayarlar'dan da seçilir. Geri sayımı Ayarlar'dan kapatabilirsin.
 - **GIF:** ses yoktur; kısa klipler içindir. En uzun kenarı 1280 piksele küçültülür, varsayılan hız 10 kare/sn.
