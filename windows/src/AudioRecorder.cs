@@ -6,13 +6,13 @@ using System.Threading;
 namespace Kiskac
 {
     // Sistem sesi (WASAPI loopback) ve/veya mikrofonu yakalar, 48 kHz stereoya çevirip karıştırır ve MP4'e AAC olarak yazar.
-    // Zaman çizelgesi video ile ortak RecordingClock'tan gelir: kaynaktan veri gelmeyen anlar (ör. hiç ses çalmıyorken
-    // loopback paket göndermez) sessizlikle doldurulur, böylece ses kaymaz. Tüm COM nesneleri kendi MTA iş parçacığındadır.
+    // Her paket, WASAPI'nin bildirdiği yakalanma zamanına göre ortak zaman çizelgesine yerleştirilir (AudioMixer):
+    // veri gelmeyen anlar (ör. hiç ses çalmıyorken loopback paket göndermez) sessizlik olur ve ses görüntüden kaymaz.
+    // Tüm COM nesneleri kendi MTA iş parçacığındadır.
     sealed class AudioRecorder : IDisposable
     {
         const int Rate = Mp4Writer.AudioRate;
-        const long LatencyTicks = 1500000; // 150 ms: kaynakların paket gecikmesine pay
-        const int MaxBacklog = Rate / 3;    // kaynakta birikebilecek en fazla ses (~330 ms); fazlası atılır
+        const long LatencyTicks = 1500000; // 150 ms: paketlerin gecikmeli gelmesine pay
 
         readonly AudioMode mode;
         readonly RecordingClock clock;
@@ -20,9 +20,9 @@ namespace Kiskac
         readonly ManualResetEvent stop = new ManualResetEvent(false);
         readonly ManualResetEvent ready = new ManualResetEvent(false);
         readonly List<AudioSource> sources = new List<AudioSource>();
+        readonly AudioMixer mixer = new AudioMixer();
         Thread thread;
         string warning;
-        long produced; // yazılan örnek sayısı (48 kHz)
 
         public AudioRecorder(AudioMode mode, RecordingClock clock, Mp4Writer writer)
         {
@@ -59,7 +59,6 @@ namespace Kiskac
             if (problems.Count > 0) warning = string.Join(" ", problems.ToArray());
             ready.Set();
 
-            var mix = new float[Rate * 2];
             var pcm = new short[Rate * 2];
             var handle = GCHandle.Alloc(pcm, GCHandleType.Pinned);
             try
@@ -67,39 +66,21 @@ namespace Kiskac
                 while (true)
                 {
                     bool stopping = stop.WaitOne(10);
-                    foreach (var s in sources) s.Drain();
+                    // Paketler yakalanma zamanlarıyla yerleşir; kayıt öncesi ve duraklama sırasındakiler atılır.
+                    foreach (var s in sources) s.Drain(clock, mixer.Produced);
 
-                    if (!clock.Running || Paused || clock.Paused)
-                    {
-                        // Kayıt başlamadan / duraklatılmışken gelen ses atılır.
-                        foreach (var s in sources) s.Fifo.Clear();
-                        if (stopping) break;
-                        continue;
-                    }
-
+                    // Duraklamada Now donar, karıştırıcı bekler; tampondaki ses devam edince yazılır.
                     long target = clock.Now - (stopping ? 0 : LatencyTicks);
-                    long targetSamples = target * Rate / 10000000;
-                    int need = (int)Math.Min(Rate, targetSamples - produced);
-                    if (need > 0)
+                    long targetSamples = Math.Max(0, target) * Rate / 10000000;
+                    if (stopping && mixer.Produced == 0) targetSamples = Math.Max(targetSamples, 1024); // boş ses akışı MP4'ü bozar
+                    while (mixer.Produced < targetSamples)
                     {
-                        Array.Clear(mix, 0, need * 2);
-                        foreach (var s in sources)
-                        {
-                            // Kaynak çok geride kaldıysa (ör. sürücü toplu teslim etti) gecikme büyümesin.
-                            int excess = s.Fifo.Frames - need - MaxBacklog;
-                            if (excess > 0) s.Fifo.Drop(excess);
-                            s.Fifo.MixInto(mix, need);
-                        }
-                        for (int i = 0; i < need * 2; i++)
-                        {
-                            float v = mix[i];
-                            if (v > 1f) v = 1f; else if (v < -1f) v = -1f;
-                            pcm[i] = (short)(v * 32767f);
-                        }
-                        long t = produced * 10000000L / Rate;
-                        long d = (produced + need) * 10000000L / Rate - t;
+                        long start = mixer.Produced;
+                        int need = (int)Math.Min(Rate, targetSamples - start);
+                        mixer.Mix(need, pcm);
+                        long t = start * 10000000L / Rate;
+                        long d = (start + need) * 10000000L / Rate - t;
                         writer.WriteAudio(handle.AddrOfPinnedObject(), need * 4, t, d);
-                        produced += need;
                     }
                     if (stopping) break;
                 }
@@ -120,7 +101,9 @@ namespace Kiskac
         {
             try
             {
-                sources.Add(new AudioSource(loopback));
+                var s = new AudioSource(loopback);
+                sources.Add(s);
+                mixer.Add(s.Track);
             }
             catch (Exception ex)
             {
@@ -138,7 +121,7 @@ namespace Kiskac
         }
     }
 
-    // Tek bir WASAPI yakalama aygıtı. Gelen veriyi 48 kHz stereo float'a çevirip Fifo'ya ekler.
+    // Tek bir WASAPI yakalama aygıtı. Gelen veriyi stereo float'a çevirip yakalanma zamanıyla Track'e verir.
     sealed class AudioSource : IDisposable
     {
         static readonly Guid CLSID_MMDeviceEnumerator = new Guid("BCDE0395-E52F-467C-8E3D-C4579291692E");
@@ -146,13 +129,12 @@ namespace Kiskac
         static readonly Guid IID_IAudioCaptureClient = new Guid("C8ADBD64-E71E-48a0-A4DE-185C395CD317");
         static readonly Guid SubFormatFloat = new Guid("00000003-0000-0010-8000-00aa00389b71");
 
-        public readonly FloatFifo Fifo = new FloatFifo();
+        public readonly AudioTrack Track;
         readonly bool loopback;
         IAudioClient client;
         IAudioCaptureClient capture;
         readonly int channels, srcRate, bits, blockAlign;
         readonly bool isFloat;
-        readonly Resampler resampler;
         float[] convert = new float[0];
         bool dead;
 
@@ -189,7 +171,7 @@ namespace Kiskac
                 iid = IID_IAudioCaptureClient;
                 client.GetService(ref iid, out o);
                 capture = (IAudioCaptureClient)o;
-                resampler = new Resampler(srcRate, Mp4Writer.AudioRate);
+                Track = new AudioTrack(srcRate);
                 client.Start();
                 Util.Log((loopback ? "Sistem sesi" : "Mikrofon") + ": " + srcRate + " Hz, " + channels + " kanal, " + bits + " bit" + (isFloat ? " float" : ""));
             }
@@ -206,8 +188,8 @@ namespace Kiskac
             }
         }
 
-        // Bekleyen tüm paketleri okur.
-        public void Drain()
+        // Bekleyen tüm paketleri okur. qpc: paketin ilk karesinin yakalandığı an (100 ns, performans sayacı).
+        public void Drain(RecordingClock clock, long produced)
         {
             if (dead || capture == null) return;
             try
@@ -220,7 +202,12 @@ namespace Kiskac
                     int frames, flags;
                     long devPos, qpc;
                     capture.GetBuffer(out data, out frames, out flags, out devPos, out qpc);
-                    Convert(data, frames, (flags & 0x2) != 0 /* AUDCLNT_BUFFERFLAGS_SILENT */);
+                    long at = clock.ToRecording(qpc);
+                    if (at >= 0)
+                    {
+                        Convert(data, frames, (flags & 0x2) != 0 /* AUDCLNT_BUFFERFLAGS_SILENT */);
+                        Track.Add(convert, frames, at, produced);
+                    }
                     capture.ReleaseBuffer(frames);
                     capture.GetNextPacketSize(out packet);
                 }
@@ -253,7 +240,6 @@ namespace Kiskac
                     convert[f * 2 + 1] = r;
                 }
             }
-            resampler.Process(convert, frames, Fifo);
         }
 
         float Sample(byte[] b, int o, int bytesPer)
@@ -275,6 +261,96 @@ namespace Kiskac
             MF.Release(client);
             capture = null;
             client = null;
+        }
+    }
+
+    // Bir kaynağın kayıt zaman çizelgesindeki sesi (48 kHz stereo). Paketler yakalanma zamanlarına göre yerleşir:
+    // arada boşluk varsa sessizlik eklenir, önceki veriyle çakışıyorsa çakışan kısım atılır. Küçük sapmalar
+    // (Tolerance) tıkırtı olmasın diye yok sayılır ve paketler art arda eklenir.
+    sealed class AudioTrack
+    {
+        const int Rate = Mp4Writer.AudioRate;
+        const int Tolerance = Rate / 50; // 20 ms
+
+        readonly Resampler resampler;
+        readonly FloatFifo fifo = new FloatFifo();
+        readonly FloatFifo temp = new FloatFifo();
+        long writePos; // fifo'nun sonunun zaman çizelgesindeki yeri (örnek)
+
+        public AudioTrack(int sourceRate)
+        {
+            resampler = new Resampler(sourceRate, Rate);
+        }
+
+        // frames: kaynak hızında stereo kareler. at: ilk karenin kayıttaki zamanı (100 ns).
+        // produced: karıştırıcının yazdığı yer; ondan öncesine düşen ses artık yazılamaz.
+        public void Add(float[] stereo, int frames, long at, long produced)
+        {
+            temp.Clear();
+            resampler.Process(stereo, frames, temp);
+            int n = temp.Frames;
+            long p = at * Rate / 10000000;
+
+            if (writePos < produced)
+            {
+                fifo.Clear();
+                writePos = produced;
+            }
+            long gap = p - writePos;
+            if (gap > Tolerance)
+            {
+                fifo.AppendSilence((int)Math.Min(gap, Rate * 10));
+                writePos += gap;
+            }
+            else if (gap < -Tolerance)
+                temp.Drop((int)Math.Min(n, -gap));
+
+            writePos += temp.Frames;
+            temp.MoveTo(fifo);
+        }
+
+        // [produced, produced+need) aralığına düşen sesi mix'e ekler ve tüketir.
+        public void MixInto(float[] mix, long produced, int need)
+        {
+            long front = writePos - fifo.Frames;
+            if (front < produced)
+            {
+                fifo.Drop((int)Math.Min(fifo.Frames, produced - front));
+                front = produced;
+            }
+            long offset = front - produced;
+            if (fifo.Frames == 0 || offset >= need) return;
+            int take = (int)Math.Min(need - offset, fifo.Frames);
+            fifo.MixInto(mix, (int)offset, take);
+        }
+    }
+
+    // Kaynakları toplayıp 16 bit stereo PCM üretir.
+    sealed class AudioMixer
+    {
+        readonly List<AudioTrack> tracks = new List<AudioTrack>();
+        float[] mix = new float[Mp4Writer.AudioRate * 2];
+
+        public long Produced { get; private set; }
+
+        public void Add(AudioTrack t)
+        {
+            tracks.Add(t);
+        }
+
+        public void Mix(int need, short[] pcm)
+        {
+            if (mix.Length < need * 2) mix = new float[need * 2];
+            Array.Clear(mix, 0, need * 2);
+            foreach (var t in tracks) t.MixInto(mix, Produced, need);
+            for (int i = 0; i < need * 2; i++)
+            {
+                float v = mix[i];
+                if (v > 1f) v = 1f;
+                else if (v < -1f) v = -1f;
+                pcm[i] = (short)(v * 32767f);
+            }
+            Produced += need;
         }
     }
 
@@ -344,24 +420,47 @@ namespace Kiskac
 
         public void Append(float[] data, int n)
         {
-            if ((start + frames + n) * 2 > buf.Length)
-            {
-                // Başa kaydır, gerekirse büyüt
-                var nb = (frames + n) * 2 > buf.Length / 2 ? new float[Math.Max(buf.Length * 2, (frames + n) * 4)] : buf;
-                Array.Copy(buf, start * 2, nb, 0, frames * 2);
-                buf = nb;
-                start = 0;
-            }
-            Array.Copy(data, 0, buf, (start + frames) * 2, n * 2);
+            Append(data, 0, n);
+        }
+
+        // data[offset*2 ...] konumundan n kare ekler
+        public void Append(float[] data, int offset, int n)
+        {
+            Reserve(n);
+            Array.Copy(data, offset * 2, buf, (start + frames) * 2, n * 2);
             frames += n;
         }
 
-        // En fazla n kareyi mix'e ekler (eksikse kalan kısım sessiz kalır) ve kuyruktan çıkarır.
-        public void MixInto(float[] mix, int n)
+        public void AppendSilence(int n)
+        {
+            Reserve(n);
+            Array.Clear(buf, (start + frames) * 2, n * 2);
+            frames += n;
+        }
+
+        // Tüm kareleri dst'ye taşır.
+        public void MoveTo(FloatFifo dst)
+        {
+            dst.Append(buf, start, frames);
+            Clear();
+        }
+
+        void Reserve(int n)
+        {
+            if ((start + frames + n) * 2 <= buf.Length) return;
+            // Başa kaydır, gerekirse büyüt
+            var nb = (frames + n) * 2 > buf.Length / 2 ? new float[Math.Max(buf.Length * 2, (frames + n) * 4)] : buf;
+            Array.Copy(buf, start * 2, nb, 0, frames * 2);
+            buf = nb;
+            start = 0;
+        }
+
+        // n kareyi mix'in offset karesinden itibaren ekler ve kuyruktan çıkarır.
+        public void MixInto(float[] mix, int offset, int n)
         {
             int take = Math.Min(n, frames);
-            int o = start * 2;
-            for (int i = 0; i < take * 2; i++) mix[i] += buf[o + i];
+            int o = start * 2, d = offset * 2;
+            for (int i = 0; i < take * 2; i++) mix[d + i] += buf[o + i];
             Drop(take);
         }
 

@@ -32,29 +32,49 @@ namespace Kiskac
         void Finish();
     }
 
-    // Duraklatılabilen kayıt saati (100 ns). Video ve ses aynı saati kullanır, böylece senkron kalır.
+    // Duraklatılabilen kayıt saati. Video ve ses aynı saati kullanır, böylece senkron kalır.
+    // "Mutlak" zaman, performans sayacının 100 ns birimine çevrilmiş hâlidir; WASAPI paketlerinin
+    // yakalanma zamanı (qpcPosition) da aynı birimdedir, bu yüzden ses paketleri doğrudan yerleştirilebilir.
     sealed class RecordingClock
     {
-        readonly Stopwatch sw = new Stopwatch();
         readonly object gate = new object();
-        long pausedTicks, pauseStart;
-        bool paused;
+        readonly List<long[]> pauses = new List<long[]>(); // tamamlanmış duraklamalar: {başlangıç, bitiş}
+        long start = -1, pausedTotal, pauseStart = -1;
 
-        public void Start() { sw.Start(); }
+        public static long AbsoluteNow
+        {
+            get { return (long)(Stopwatch.GetTimestamp() * (10000000.0 / Stopwatch.Frequency)); }
+        }
 
-        public bool Running { get { return sw.IsRunning; } }
+        public void Start() { Start(AbsoluteNow); }
+
+        public void Start(long abs)
+        {
+            lock (gate) start = abs;
+        }
+
+        public bool Running
+        {
+            get { lock (gate) return start >= 0; }
+        }
 
         public bool Paused
         {
-            get { lock (gate) return paused; }
-            set
+            get { lock (gate) return pauseStart >= 0; }
+            set { SetPaused(value, AbsoluteNow); }
+        }
+
+        public void SetPaused(bool paused, long abs)
+        {
+            lock (gate)
             {
-                lock (gate)
+                if (paused == (pauseStart >= 0)) return;
+                if (paused) pauseStart = abs;
+                else
                 {
-                    if (value == paused) return;
-                    paused = value;
-                    if (paused) pauseStart = sw.ElapsedTicks;
-                    else pausedTicks += sw.ElapsedTicks - pauseStart;
+                    pauses.Add(new[] { pauseStart, abs });
+                    pausedTotal += abs - pauseStart;
+                    pauseStart = -1;
                 }
             }
         }
@@ -62,13 +82,33 @@ namespace Kiskac
         // Duraklamalar çıkarılmış geçen süre, 100 ns biriminde
         public long Now
         {
-            get
+            get { return NowAt(AbsoluteNow); }
+        }
+
+        public long NowAt(long abs)
+        {
+            lock (gate)
             {
-                lock (gate)
+                if (start < 0) return 0;
+                if (pauseStart >= 0) abs = pauseStart;
+                return abs - start - pausedTotal;
+            }
+        }
+
+        // Mutlak bir anın kayıttaki yeri (100 ns). Kayıt öncesi ya da duraklama sırasındaysa -1.
+        public long ToRecording(long abs)
+        {
+            lock (gate)
+            {
+                if (start < 0 || abs < start) return -1;
+                if (pauseStart >= 0 && abs >= pauseStart) return -1;
+                long skipped = 0;
+                foreach (var p in pauses)
                 {
-                    long t = (paused ? pauseStart : sw.ElapsedTicks) - pausedTicks;
-                    return (long)(t * (10000000.0 / Stopwatch.Frequency));
+                    if (abs >= p[1]) skipped += p[1] - p[0];
+                    else if (abs >= p[0]) return -1;
                 }
+                return abs - start - skipped;
             }
         }
     }
@@ -150,7 +190,8 @@ namespace Kiskac
                 long lastIndex = -1;
                 Util.Log("Kayıt hazır: " + sink.Width + "x" + sink.Height + " " + options.Fps + " kare/sn");
                 clock.Start();
-                while (!stopSignal.WaitOne(0))
+                // En az bir kare yazılır: hemen durdurulsa bile dosya geçerli olsun.
+                while (lastIndex < 0 || !stopSignal.WaitOne(0))
                 {
                     if (clock.Paused)
                     {

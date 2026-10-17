@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -15,6 +16,7 @@ namespace Kiskac
         {
             // Media Foundation gerektirmeyenler
             Resample(check, log);
+            AudioSync(check, log);
             Gif(dir, check, log);
 
             try
@@ -46,11 +48,20 @@ namespace Kiskac
             try
             {
                 if (File.Exists(path)) File.Delete(path);
+                // Bazı makinelerde (CI, Windows N) Media Foundation olsa da H.264/AAC kodlayıcı olmayabilir: SKIP.
+                Mp4Writer writer;
+                try { writer = new Mp4Writer(path, w, h, fps, audio); }
+                catch (Exception ex)
+                {
+                    log.AppendLine("SKIP  " + name + ": kodlayıcı açılamadı (0x" + Marshal.GetHRForException(ex).ToString("X8") + ") " + ex.Message);
+                    return;
+                }
+
                 var px = new int[w * h];
                 var handle = GCHandle.Alloc(px, GCHandleType.Pinned);
                 try
                 {
-                    using (var mp4 = new Mp4Writer(path, w, h, fps, audio))
+                    using (var mp4 = writer)
                     {
                         for (int f = 0; f < frames; f++)
                         {
@@ -122,7 +133,7 @@ namespace Kiskac
             }
             int frames = fifo.Frames;
             var mix = new float[frames * 2];
-            fifo.MixInto(mix, frames);
+            fifo.MixInto(mix, 0, frames);
             float peak = 0, jump = 0;
             for (int i = 0; i < frames; i++)
             {
@@ -133,6 +144,86 @@ namespace Kiskac
             check("Yeniden örnekleme kare sayısı", Math.Abs(frames - 48000) <= 3);
             check("Yeniden örnekleme genliği ve sürekliliği", peak > 0.48 && peak <= 0.5 && jump < 0.075
                 && Math.Abs(mix[1] + mix[0]) < 1e-5);
+        }
+
+        // Ses zamanlaması: paketler yakalanma zamanlarına göre yerleşmeli. Sessizlikten (paket gelmeyen aralıktan)
+        // ve duraklatmadan sonra gelen bir "tık"ın kayıtta beklenen örnekte olduğu denetlenir (±1 ms).
+        static void AudioSync(Check check, StringBuilder log)
+        {
+            const long Base = 50000000000L; // keyfi mutlak başlangıç (100 ns)
+            const long Ms = 10000;
+
+            // 1) 48 ve 44,1 kHz kaynak: 0–20 ms ses, 520 ms'ye kadar paket yok, 520 ms'de tık.
+            foreach (int rate in new[] { 48000, 44100 })
+            {
+                var clock = new RecordingClock();
+                clock.Start(Base);
+                long click = SimulateClick(clock, rate, new long[] { 0, 10 }, 520, 1000, 0, 0);
+                long expected = 520 * 48;
+                log.AppendLine("      Ses zamanlaması (" + rate + " Hz, sessizlik sonrası): tık " + click + ". örnekte, beklenen " + expected);
+                check("Sessizlikten sonra ses doğru yerde (" + rate + " Hz)", Math.Abs(click - expected) <= 48);
+            }
+
+            // 2) 300–800 ms arası duraklatma: 1000 ms'deki tık kayıtta 500 ms'de olmalı.
+            {
+                var clock = new RecordingClock();
+                clock.Start(Base);
+                var steady = new List<long>();
+                for (long t = 0; t < 1300; t += 10) if (t != 1000) steady.Add(t);
+                long click = SimulateClick(clock, 48000, steady.ToArray(), 1000, 1300, 300, 800);
+                long expected = 500 * 48;
+                log.AppendLine("      Ses zamanlaması (duraklatma sonrası): tık " + click + ". örnekte, beklenen " + expected);
+                check("Duraklatmadan sonra ses doğru yerde", Math.Abs(click - expected) <= 48);
+                check("Duraklatma sırasındaki ses atılır", clock.ToRecording(Base + 500 * Ms) == -1
+                    && clock.ToRecording(Base + 900 * Ms) == 400 * Ms && clock.ToRecording(Base - 1) == -1);
+            }
+        }
+
+        // Gerçek zamanı 10 ms adımlarla taklit eder. Paketler (10 ms, düşük seviyeli gürültü) yakalandıktan 20 ms sonra
+        // gelir; karıştırıcı kayıttaki gibi 150 ms geriden yazar. Tık paketi clickMs'de yakalanır. pauseFrom..pauseTo (ms,
+        // mutlak) arası duraklatılır. Dönen değer: çıktıda tıkın bulunduğu örnek.
+        static long SimulateClick(RecordingClock clock, int rate, long[] packetsMs, long clickMs, long endMs, long pauseFrom, long pauseTo)
+        {
+            const long Base = 50000000000L, Ms = 10000;
+            var track = new AudioTrack(rate);
+            var mixer = new AudioMixer();
+            mixer.Add(track);
+            int per = rate / 100;
+            var output = new List<short>();
+            var pcm = new short[48000 * 2];
+
+            var all = new List<long>(packetsMs);
+            all.Add(clickMs);
+            all.Sort();
+            for (long now = 0; now <= endMs + 200; now += 10)
+            {
+                if (pauseTo > pauseFrom)
+                {
+                    if (now == pauseFrom) clock.SetPaused(true, Base + now * Ms);
+                    if (now == pauseTo) clock.SetPaused(false, Base + now * Ms);
+                }
+                foreach (long cap in all)
+                {
+                    if (cap + 20 != now) continue; // bu adımda gelen paket (20 ms gecikmeyle)
+                    var data = new float[per * 2];
+                    for (int i = 0; i < per; i++) data[i * 2] = data[i * 2 + 1] = 0.01f * (float)Math.Sin(i);
+                    if (cap == clickMs) for (int i = 0; i < 3; i++) data[i * 2] = data[i * 2 + 1] = 0.9f;
+                    long at = clock.ToRecording(Base + cap * Ms);
+                    if (at >= 0) track.Add(data, per, at, mixer.Produced);
+                }
+                bool last = now == endMs + 200;
+                long target = clock.NowAt(Base + now * Ms) - (last ? 0 : 150 * Ms);
+                long targetSamples = Math.Max(0, target) * 48000 / 10000000;
+                while (mixer.Produced < targetSamples)
+                {
+                    int need = (int)Math.Min(48000, targetSamples - mixer.Produced);
+                    mixer.Mix(need, pcm);
+                    for (int i = 0; i < need; i++) output.Add(pcm[i * 2]);
+                }
+            }
+            for (int i = 0; i < output.Count; i++)
+                if (output[i] > 0.5 * 32767) return i;
+            return -1;
         }
 
         // 4 kare yazılır; 2. kare 1.'nin, 4. kare 3.'nün aynısı → GIF'te 2 kare, her biri 200 ms olmalı.
