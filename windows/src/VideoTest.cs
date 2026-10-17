@@ -164,6 +164,28 @@ namespace Kiskac
                 check("Sessizlikten sonra ses doğru yerde (" + rate + " Hz)", Math.Abs(click - expected) <= 48);
             }
 
+            // Ses seviyesi: 0,4 genlikli ses %50'de 0,2, %200'de 0,8, %0'da sessiz olmalı; gösterge de bunu yansıtmalı.
+            {
+                bool ok = true;
+                string detail = "";
+                foreach (int pct in new[] { 50, 200, 0 })
+                {
+                    var track = new AudioTrack(48000) { Gain = pct / 100f };
+                    var mixer = new AudioMixer();
+                    mixer.Add(track);
+                    var data = new float[480 * 2];
+                    for (int i = 0; i < data.Length; i++) data[i] = 0.4f;
+                    track.Add(data, 480, 0, 0);
+                    var pcm = new short[480 * 2];
+                    mixer.Mix(480, pcm);
+                    float got = pcm[100] / 32767f, want = 0.4f * pct / 100f;
+                    detail += " %" + pct + "→" + got.ToString("0.00") + "/" + track.Level.ToString("0.00");
+                    ok &= Math.Abs(got - want) < 0.01 && Math.Abs(track.Level - want) < 0.01;
+                }
+                log.AppendLine("      Ses seviyesi (çıkış/gösterge):" + detail);
+                check("Ses seviyesi çarpanı ve gösterge", ok);
+            }
+
             // 2) 300–800 ms arası duraklatma: 1000 ms'deki tık kayıtta 500 ms'de olmalı.
             {
                 var clock = new RecordingClock();

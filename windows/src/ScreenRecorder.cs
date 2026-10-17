@@ -20,6 +20,8 @@ namespace Kiskac
         public int Fps;
         public bool Cursor;
         public AudioMode Audio;
+        public int SystemVolume = 100; // yüzde
+        public int MicVolume = 100;    // yüzde
         public string Path;          // son dosya yolu
     }
 
@@ -149,6 +151,22 @@ namespace Kiskac
             if (a != null) a.Mode = mode;
         }
 
+        // Ses seviyeleri (yüzde, 0–200); kayıt öncesinde ya da sırasında değiştirilebilir.
+        public void SetVolume(AudioMode source, int percent)
+        {
+            if (source == AudioMode.System) options.SystemVolume = percent;
+            else options.MicVolume = percent;
+            var a = audio;
+            if (a != null) a.SetGain(source, percent / 100f);
+        }
+
+        // Kaynağın anlık seviyesi (0–1): çubuktaki gösterge için
+        public float LevelOf(AudioMode source)
+        {
+            var a = audio;
+            return a == null ? 0f : a.LevelOf(source);
+        }
+
         public bool Paused
         {
             get { return clock.Paused; }
@@ -201,6 +219,8 @@ namespace Kiskac
                 if (mp4 != null && mp4.Writer.HasAudio)
                 {
                     var a = new AudioRecorder((AudioMode)audioMode, clock, mp4.Writer);
+                    a.SetGain(AudioMode.System, options.SystemVolume / 100f);
+                    a.SetGain(AudioMode.Microphone, options.MicVolume / 100f);
                     audio = a;
                     a.Mode = (AudioMode)audioMode; // oluşturulurken değiştiyse
                     a.Start();

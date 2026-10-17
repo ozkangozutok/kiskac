@@ -316,6 +316,8 @@ namespace Kiskac
                 Fps = gif ? Settings.GifFps : Settings.VideoFps,
                 Cursor = Settings.RecordCursor,
                 Audio = gif ? AudioMode.None : Settings.RecordAudio,
+                SystemVolume = Settings.SystemVolume,
+                MicVolume = Settings.MicVolume,
                 Path = path
             };
             var rec = new ScreenRecorder(options);
@@ -339,6 +341,12 @@ namespace Kiskac
             {
                 rec.SetAudio(mode);
                 Settings.RecordAudio = mode; // son seçim hatırlanır
+            };
+            recBar.VolumeChanged += (source, percent) =>
+            {
+                rec.SetVolume(source, percent);
+                if (source == AudioMode.System) Settings.SystemVolume = percent;
+                else Settings.MicVolume = percent;
             };
             // Geri sayım bitince (ya da "şimdi başla") kayıt gerçekten başlar.
             recBar.Begin += delegate

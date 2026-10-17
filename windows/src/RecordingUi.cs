@@ -87,6 +87,9 @@ namespace Kiskac
         DateTime countdownEnd;
         bool blink;
         AudioMode audio;
+        int sysVolume, micVolume;   // yüzde
+        string flash;               // seviye değişince kısa süre süre yerine gösterilir
+        DateTime flashUntil;
 
         // Geri sayım bitti ya da "şimdi başla"ya basıldı
         public event EventHandler Begin;
@@ -94,6 +97,8 @@ namespace Kiskac
         // Kayıtta: durdur; geri sayımda: iptal
         public event EventHandler StopClicked;
         public event Action<AudioMode> AudioChanged;
+        // (kaynak, yüzde): simgenin üzerinde fare tekerleğiyle
+        public event Action<AudioMode, int> VolumeChanged;
 
         public RecordingBar(ScreenRecorder recorder)
         {
@@ -101,6 +106,8 @@ namespace Kiskac
             region = recorder.Options.Region;
             hasAudio = recorder.Options.Format == VideoFormat.Mp4;
             audio = recorder.Options.Audio;
+            sysVolume = recorder.Options.SystemVolume;
+            micVolume = recorder.Options.MicVolume;
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             TopMost = true;
@@ -229,8 +236,10 @@ namespace Kiskac
             if (state != State.Countdown) return null;
             switch (b)
             {
-                case Btn.System: return Has(audio, AudioMode.System) ? "Sistem sesi kaydediliyor (kapatmak için tıkla)" : "Sistem sesi kapalı (açmak için tıkla)";
-                case Btn.Mic: return Has(audio, AudioMode.Microphone) ? "Mikrofon kaydediliyor (kapatmak için tıkla)" : "Mikrofon kapalı (açmak için tıkla)";
+                case Btn.System: return (Has(audio, AudioMode.System) ? "Sistem sesi açık, %" + sysVolume : "Sistem sesi kapalı")
+                    + "  •  tıkla: aç/kapat, tekerlek: seviye";
+                case Btn.Mic: return (Has(audio, AudioMode.Microphone) ? "Mikrofon açık, %" + micVolume : "Mikrofon kapalı")
+                    + "  •  tıkla: aç/kapat, tekerlek: seviye";
                 case Btn.Pause: return state == State.Countdown ? "Şimdi başla" : recorder.Paused ? "Devam et" : "Duraklat";
                 case Btn.Stop: return state == State.Countdown ? "İptal" : "Durdur ve kaydet";
             }
@@ -265,7 +274,16 @@ namespace Kiskac
                 TextRenderer.DrawText(g, "Kaydediliyor…", smallFont, textRect, white, flags);
                 return;
             }
-            if (state == State.Countdown)
+            if (flash != null && DateTime.UtcNow < flashUntil)
+            {
+                // "%80" büyük, kaynak adı küçük gri
+                var parts = flash.Split('|');
+                TextRenderer.DrawText(g, parts[0], timeFont, textRect, white, flags);
+                var sz = TextRenderer.MeasureText(parts[0], timeFont);
+                TextRenderer.DrawText(g, parts[1], smallFont, new Rectangle(textRect.X + sz.Width - S(4), 0, textRect.Width - sz.Width, Height),
+                    gray, flags | TextFormatFlags.EndEllipsis);
+            }
+            else if (state == State.Countdown)
             {
                 int left = Math.Max(1, (int)Math.Ceiling((countdownEnd - DateTime.UtcNow).TotalSeconds));
                 TextRenderer.DrawText(g, "Başlıyor  " + left, timeFont, textRect, white, flags);
@@ -301,6 +319,8 @@ namespace Kiskac
                 if (!micOn)
                     using (var slash = new Pen(gray, Math.Max(1.5f, 1.6f * scale)))
                         g.DrawLine(slash, micRect.X + S(8), micRect.Bottom - S(8), micRect.Right - S(8), micRect.Y + S(8));
+                if (sysOn) DrawMeter(g, sysRect, recorder.LevelOf(AudioMode.System));
+                if (micOn) DrawMeter(g, micRect, recorder.LevelOf(AudioMode.Microphone));
                 using (var sep = new Pen(Color.FromArgb(60, 255, 255, 255)))
                     g.DrawLine(sep, pauseRect.X - S(7), S(10), pauseRect.X - S(7), Height - S(10));
             }
@@ -321,6 +341,37 @@ namespace Kiskac
                 using (var p = Util.RoundRect(new RectangleF(stopRect.X + (stopRect.Width - sq) / 2f, stopRect.Y + (stopRect.Height - sq) / 2f, sq, sq), S(2)))
                     g.FillPath(red, p);
             }
+        }
+
+        // Simgenin sağında ince dikey seviye göstergesi: kaynaktan ses gelip gelmediği görülsün.
+        void DrawMeter(Graphics g, Rectangle r, float level)
+        {
+            int full = S(18), w = Math.Max(2, S(3));
+            int x = r.Right - w - S(1), bottom = r.Y + (r.Height + full) / 2;
+            using (var bg = new SolidBrush(Color.FromArgb(50, 255, 255, 255)))
+                g.FillRectangle(bg, x, bottom - full, w, full);
+            int h = (int)Math.Round(full * Math.Sqrt(Math.Max(0, Math.Min(1, level))));
+            if (h <= 0) return;
+            var c = level > 0.95f ? Color.FromArgb(235, 70, 60) : level > 0.6f ? Color.FromArgb(255, 190, 0) : Color.FromArgb(70, 200, 110);
+            using (var fg = new SolidBrush(c))
+                g.FillRectangle(fg, x, bottom - h, w, h);
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+            var b = HitTest(e.Location);
+            if (b != Btn.System && b != Btn.Mic) return;
+            int step = e.Delta > 0 ? 10 : -10;
+            bool sys = b == Btn.System;
+            int v = Math.Max(0, Math.Min(200, (sys ? sysVolume : micVolume) + step));
+            if (sys) sysVolume = v; else micVolume = v;
+            flash = "%" + v + "|" + (sys ? "sistem sesi" : "mikrofon");
+            flashUntil = DateTime.UtcNow.AddSeconds(1.5);
+            if (VolumeChanged != null) VolumeChanged(sys ? AudioMode.System : AudioMode.Microphone, v);
+            var text = TipFor(b);
+            if (text != null) tip.Show(text, this, 0, Height + S(4), 3000);
+            Invalidate();
         }
 
         protected override void OnMouseMove(MouseEventArgs e)

@@ -103,7 +103,7 @@ Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü 
 
 1. Kısayola bas (ya da tepsi menüsünden **Video kaydet…**'i seç) ve kaydedilecek alanı seç.
 2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde bir çerçeve ve altında küçük bir kontrol çubuğu belirir; kayıt **3 saniye geri saydıktan sonra** başlar.
-3. Geri sayım sırasında (ve kayıt boyunca) çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapatabilirsin; seçimin bir sonraki kayıt için hatırlanır. Beklemeden başlamak için **●**, vazgeçmek için **✕**.
+3. Geri sayım sırasında (ve kayıt boyunca) çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapatabilirsin. Simgenin üzerinde **fare tekerleği** o kaynağın ses seviyesini değiştirir (%0–%200); yanındaki küçük gösterge sesin gelip gelmediğini gösterir. Seçimlerin bir sonraki kayıt için hatırlanır. Beklemeden başlamak için **●**, vazgeçmek için **✕**.
 4. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
 
 Kayıt *Videolar › Kıskaç* klasörüne kaydedilir; bildirime tıklayınca dosya klasörde gösterilir.
@@ -122,7 +122,7 @@ Tepsi simgesine sağ tıklayıp (macOS'ta menü çubuğundaki simgeye tıklayıp
 - **Genel:** oturum açılınca başlat, çekimde deklanşör sesi (macOS).
 - **Seçim ekranı:** karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama.
 - **Kaydetme ve kopyalama:** kayıt klasörü (varsayılan *Resimler › Kıskaç*), biçim ve JPEG kalitesi, sormadan kaydetme, kaydettikten sonra panoya da kopyalama.
-- **Video kaydı (Windows):** video klasörü (varsayılan *Videolar › Kıskaç*), ses kaynağı, MP4 ve GIF kare hızı, imleci kaydetme.
+- **Video kaydı (Windows):** video klasörü (varsayılan *Videolar › Kıskaç*), ses kaynağı, sistem sesi ve mikrofon seviyesi, MP4 ve GIF kare hızı, imleci kaydetme, geri sayım.
 - **Güncelleme:** sürüm bilgisi, şimdi denetle, otomatik denetim.
 
 ## Güncelleme

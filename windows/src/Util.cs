@@ -258,6 +258,19 @@ namespace Kiskac
 
         public static bool RecordCursor { get { return GetBool("RecordCursor", true); } set { SetBool("RecordCursor", value); } }
 
+        // Ses seviyeleri, yüzde (0–200)
+        public static int SystemVolume
+        {
+            get { return Math.Max(0, Math.Min(200, GetInt("SystemVolume", 100))); }
+            set { Set("SystemVolume", Math.Max(0, Math.Min(200, value))); }
+        }
+
+        public static int MicVolume
+        {
+            get { return Math.Max(0, Math.Min(200, GetInt("MicVolume", 100))); }
+            set { Set("MicVolume", Math.Max(0, Math.Min(200, value))); }
+        }
+
         // Kayıt başlamadan 3 saniye geri say (bu sırada ses kaynakları seçilebilir)
         public static bool RecordCountdown { get { return GetBool("RecordCountdown", true); } set { SetBool("RecordCountdown", value); } }
 

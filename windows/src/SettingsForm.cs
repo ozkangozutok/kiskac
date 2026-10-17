@@ -119,6 +119,8 @@ namespace Kiskac
             audio.SelectedIndex = (int)Settings.RecordAudio;
             audio.SelectedIndexChanged += delegate { Settings.RecordAudio = (AudioMode)audio.SelectedIndex; };
             AddRow(g, "Ses (MP4)", audio);
+            AddRow(g, "Sistem sesi seviyesi", VolumeSlider(Settings.SystemVolume, v => Settings.SystemVolume = v));
+            AddRow(g, "Mikrofon seviyesi", VolumeSlider(Settings.MicVolume, v => Settings.MicVolume = v));
 
             int[] mp4Rates = { 15, 30, 60 };
             var mp4Fps = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
@@ -219,6 +221,22 @@ namespace Kiskac
                     saveDir.Text = d.SelectedPath;
                 }
             }
+        }
+
+        // %0–%200 ses seviyesi kaydırıcısı ve yanında değeri
+        static FlowLayoutPanel VolumeSlider(int value, Action<int> set)
+        {
+            var bar = new TrackBar { Minimum = 0, Maximum = 200, SmallChange = 10, LargeChange = 10, TickFrequency = 50, Value = value, Width = 220, AutoSize = false, Height = 30 };
+            var label = new Label { AutoSize = true, Margin = new Padding(3, 7, 3, 0), Text = "%" + value };
+            bar.ValueChanged += delegate
+            {
+                set(bar.Value);
+                label.Text = "%" + bar.Value;
+            };
+            var row = Flow();
+            row.Controls.Add(bar);
+            row.Controls.Add(label);
+            return row;
         }
 
         void ChooseVideoDir()

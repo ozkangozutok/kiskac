@@ -24,7 +24,22 @@ namespace Kiskac
         Thread thread;
         volatile int desired;            // AudioMode
         volatile bool systemFailed, micFailed;
-        AudioSource system, mic;
+        AudioSource system, mic; // yalnızca ses iş parçacığı değiştirir; LevelOf okurken eski değer görmesi zararsız
+        volatile float systemGain = 1f, micGain = 1f;
+
+        // Ses seviyeleri (1 = %100); kayıt sırasında değişebilir.
+        public void SetGain(AudioMode source, float gain)
+        {
+            if (source == AudioMode.System) systemGain = gain;
+            else if (source == AudioMode.Microphone) micGain = gain;
+        }
+
+        // Kaynağın anlık seviyesi (0–1), kapalıysa 0
+        public float LevelOf(AudioMode source)
+        {
+            var s = source == AudioMode.System ? system : mic;
+            return s == null ? 0f : s.Track.Level;
+        }
 
         public AudioRecorder(AudioMode mode, RecordingClock clock, Mp4Writer writer)
         {
@@ -82,8 +97,16 @@ namespace Kiskac
                     bool stopping = stop.WaitOne(10);
                     Sync();
                     // Paketler yakalanma zamanlarıyla yerleşir; kayıt öncesi ve duraklama sırasındakiler atılır.
-                    if (system != null) system.Drain(clock, mixer.Produced);
-                    if (mic != null) mic.Drain(clock, mixer.Produced);
+                    if (system != null)
+                    {
+                        system.Track.Gain = systemGain;
+                        system.Drain(clock, mixer.Produced);
+                    }
+                    if (mic != null)
+                    {
+                        mic.Track.Gain = micGain;
+                        mic.Drain(clock, mixer.Produced);
+                    }
 
                     // Duraklamada Now donar, karıştırıcı bekler; tampondaki ses devam edince yazılır.
                     long target = clock.Now - (stopping ? 0 : LatencyTicks);
@@ -132,6 +155,7 @@ namespace Kiskac
             try
             {
                 source = new AudioSource(loopback);
+                source.Track.Gain = loopback ? systemGain : micGain;
                 mixer.Add(source.Track);
                 return true;
             }
@@ -318,6 +342,11 @@ namespace Kiskac
         readonly FloatFifo temp = new FloatFifo();
         long writePos; // fifo'nun sonunun zaman çizelgesindeki yeri (örnek)
 
+        // Ses seviyesi çarpanı (1 = %100). Kayıt sırasında değişebilir.
+        public volatile float Gain = 1f;
+        // Son karıştırılan sesin tepe değeri (kazanç sonrası, yavaşça söner): çubuktaki gösterge için.
+        public volatile float Level;
+
         public AudioTrack(int sourceRate)
         {
             resampler = new Resampler(sourceRate, Rate);
@@ -360,9 +389,15 @@ namespace Kiskac
                 front = produced;
             }
             long offset = front - produced;
-            if (fifo.Frames == 0 || offset >= need) return;
+            float decayed = Level * 0.9f;
+            if (fifo.Frames == 0 || offset >= need)
+            {
+                Level = decayed;
+                return;
+            }
             int take = (int)Math.Min(need - offset, fifo.Frames);
-            fifo.MixInto(mix, (int)offset, take);
+            float peak = fifo.MixInto(mix, (int)offset, take, Gain);
+            Level = Math.Max(decayed, Math.Min(1f, peak));
         }
     }
 
@@ -501,13 +536,21 @@ namespace Kiskac
             start = 0;
         }
 
-        // n kareyi mix'in offset karesinden itibaren ekler ve kuyruktan çıkarır.
-        public void MixInto(float[] mix, int offset, int n)
+        // n kareyi gain ile çarpıp mix'in offset karesinden itibaren ekler ve kuyruktan çıkarır. Eklenen sesin tepe değerini döner.
+        public float MixInto(float[] mix, int offset, int n, float gain = 1f)
         {
             int take = Math.Min(n, frames);
             int o = start * 2, d = offset * 2;
-            for (int i = 0; i < take * 2; i++) mix[d + i] += buf[o + i];
+            float peak = 0;
+            for (int i = 0; i < take * 2; i++)
+            {
+                float v = buf[o + i] * gain;
+                mix[d + i] += v;
+                if (v > peak) peak = v;
+                else if (-v > peak) peak = -v;
+            }
             Drop(take);
+            return peak;
         }
 
         public void Drop(int n)
