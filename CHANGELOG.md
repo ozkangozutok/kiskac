@@ -4,9 +4,11 @@ Bu dosya kullanıcıyı etkileyen değişiklikleri listeler. Sürümler [anlamsa
 
 ## Yayınlanmadı
 
+## 1.5.0
+
 - **Windows: ekran videosu ve GIF kaydı.** Seçim ekranındaki ● (MP4) ya da GIF düğmesiyle seçili alan kaydedilir. MP4'e sistem sesi ve/veya mikrofon eklenebilir (H.264 + AAC, Windows'un kendi kodlayıcılarıyla; ek indirme yok). Kayıt sırasında çerçeve ve süre/duraklat/durdur çubuğu görünür; kısayola yeniden basmak kaydı durdurur. Yeni ayarlar: video klasörü, ses kaynağı, MP4 ve GIF kare hızı, imleci kaydetme.
 - **Windows: kayıtta ses seçimi.** Kayıt çubuğu önce "Hazır" bekler; ▶ Başlat'a basınca 3 saniye geri sayar ve kayıt başlar. Hazırken ve kayıt boyunca kontrol çubuğundaki düğmelerle sistem sesi ve mikrofon açılıp kapatılabilir; simgenin üzerinde fare tekerleği o kaynağın seviyesini (%0–%200) değiştirir ve canlı seviye göstergesi vardır (seçimler hatırlanır, Ayarlar'dan da değiştirilebilir). Geri sayım iptal edilebilir, beklemeden başlatılabilir ya da Ayarlar'dan kapatılabilir.
-- **Windows: tam ekran video.** Shift+PrtSc (kısayolun Shift'li hâli) imlecin bulunduğu ekranı seçim yapmadan kaydetmeye başlar ve durdurur. Tepsi menüsündeki "Tam ekran video" ile belirli bir ekran ya da tüm ekranlar kaydedilebilir.
+- **Windows: tam ekran video.** Shift+PrtSc (kısayolun Shift'li hâli) imlecin bulunduğu ekran için seçim yapmadan kayıt çubuğunu açar; ▶ ya da yeniden Shift+PrtSc kaydı başlatır, aynı tuş durdurur. Tepsi menüsündeki "Tam ekran video" ile belirli bir ekran ya da tüm ekranlar kaydedilebilir.
 - Windows kaynak kodu `windows/` klasörüne taşındı; README kullanıcı odaklı yeniden yazıldı, katkı rehberi eklendi.
 
 ## 1.4.0
