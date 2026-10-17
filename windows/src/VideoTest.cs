@@ -13,6 +13,8 @@ namespace Kiskac
 
         public static void Run(string dir, Check check, StringBuilder log, bool large)
         {
+            Gif(dir, check, log); // Media Foundation gerektirmez
+
             try
             {
                 MF.Startup();
@@ -27,6 +29,7 @@ namespace Kiskac
             Mp4(dir, 640, 360, true, check, log);
             if (large)
             {
+                GifSpeed(dir, log);
                 Mp4(dir, 1920, 1080, false, check, log);
                 Mp4(dir, 4096, 1316, false, check, log);
             }
@@ -88,6 +91,106 @@ namespace Kiskac
             {
                 try { File.Delete(path); } catch { }
             }
+        }
+
+        // 4 kare yazılır; 2. kare 1.'nin, 4. kare 3.'nün aynısı → GIF'te 2 kare, her biri 200 ms olmalı.
+        static void Gif(string dir, Check check, StringBuilder log)
+        {
+            const int w = 640, h = 360;
+            string path = Path.Combine(dir, "kiskac-test.gif");
+            try
+            {
+                var px = new int[w * h];
+                var handle = GCHandle.Alloc(px, GCHandleType.Pinned);
+                try
+                {
+                    using (var gif = new GifSink(path, w, h))
+                    {
+                        const long ms100 = 1000000;
+                        for (int f = 0; f < 4; f++)
+                        {
+                            Synthetic(px, w, h, f < 2 ? 0 : 10);
+                            gif.WriteFrame(handle.AddrOfPinnedObject(), f * ms100, ms100);
+                        }
+                        gif.Finish();
+                    }
+                }
+                finally
+                {
+                    handle.Free();
+                }
+
+                using (var img = System.Drawing.Image.FromFile(path))
+                {
+                    var dim = System.Drawing.Imaging.FrameDimension.Time;
+                    int frames = img.GetFrameCount(dim);
+                    var delays = img.GetPropertyItem(0x5100).Value; // her kare için 4 bayt, 1/100 sn
+                    int d0 = BitConverter.ToInt32(delays, 0), d1 = frames > 1 ? BitConverter.ToInt32(delays, 4) : -1;
+                    log.AppendLine("      GIF: " + frames + " kare, süreler " + d0 + "/" + d1 + " cs, " + new FileInfo(path).Length / 1024 + " KB");
+                    check("GIF kare sayısı (değişmeyen kareler birleşir)", frames == 2);
+                    check("GIF kare süreleri", d0 == 20 && d1 == 20);
+
+                    img.SelectActiveFrame(dim, 0);
+                    using (var b0 = new System.Drawing.Bitmap(img))
+                        check("GIF ilk kare renkleri", IsColor(b0.GetPixel(24, 24).ToArgb(), 255, 0, 0)
+                            && IsColor(b0.GetPixel(w - 24, h - 24).ToArgb(), 0, 0, 255)
+                            && IsColor(b0.GetPixel(20, h / 2), 255, 255, 255));
+                    img.SelectActiveFrame(dim, 1);
+                    using (var b1 = new System.Drawing.Bitmap(img))
+                    {
+                        // 2. karede beyaz kutu kaymış olmalı; değişmeyen köşeler önceki kareden kalır
+                        int bar = 10 * 13 + 20;
+                        check("GIF ikinci kare (yalnızca değişen bölge)", IsColor(b1.GetPixel(bar, h / 2).ToArgb(), 255, 255, 255)
+                            && !IsColor(b1.GetPixel(5, h / 2).ToArgb(), 255, 255, 255)
+                            && IsColor(b1.GetPixel(24, 24).ToArgb(), 255, 0, 0));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine("FAIL  GIF: " + ex);
+                check("GIF", false);
+            }
+            finally
+            {
+                try { File.Delete(path); } catch { }
+            }
+        }
+
+        // En kötü durum: her karesi tamamen değişen, çok renkli 1280x720 akış. Bilgi amaçlı süre ölçümü.
+        static void GifSpeed(string dir, StringBuilder log)
+        {
+            const int w = 1280, h = 720, frames = 20;
+            string path = Path.Combine(dir, "kiskac-hiz.gif");
+            var px = new int[w * h];
+            var handle = GCHandle.Alloc(px, GCHandleType.Pinned);
+            var rnd = new Random(1);
+            try
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                using (var gif = new GifSink(path, w, h))
+                {
+                    for (int f = 0; f < frames; f++)
+                    {
+                        Synthetic(px, w, h, f);
+                        for (int i = 0; i < px.Length; i += 7) px[i] ^= rnd.Next(0x404040);
+                        gif.WriteFrame(handle.AddrOfPinnedObject(), f * 1000000L, 1000000L);
+                    }
+                    gif.Finish();
+                }
+                log.AppendLine("      GIF hızı (en kötü durum 1280x720): " + (sw.ElapsedMilliseconds / frames) + " ms/kare, "
+                    + new FileInfo(path).Length / 1024 + " KB");
+            }
+            finally
+            {
+                handle.Free();
+                try { File.Delete(path); } catch { }
+            }
+        }
+
+        static bool IsColor(System.Drawing.Color c, int r, int g, int b)
+        {
+            return IsColor(c.ToArgb(), r, g, b);
         }
 
         static void Synthetic(int[] px, int w, int h, int frame)
