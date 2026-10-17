@@ -38,6 +38,9 @@ namespace Kiskac
                 check("Ctrl+Alt+Del engelli", new HotKey(0x2E, Mods.Ctrl | Mods.Alt).Problem != null);
                 check("Görünen ad Ctrl+Shift+X", ctrlShiftX.Display == "Ctrl+Shift+X");
                 check("Görünen ad PrtSc", HotKey.Default.Display == "PrtSc");
+                check("Tam ekran video kısayolu Shift+PrtSc", HotKey.Default.VideoVariant.HasValue
+                    && HotKey.Default.VideoVariant.Value.Display == "Shift+PrtSc");
+                check("Shift'li kısayolun tam ekran video kısayolu yok", !ctrlShiftX.VideoVariant.HasValue);
                 log.AppendLine("      Ctrl+Alt+Q (AltGr): " + (new HotKey('Q', Mods.Ctrl | Mods.Alt).Problem ?? "geçerli"));
                 log.AppendLine("      Ctrl+OEM1 adı: " + new HotKey(0xBA, Mods.Ctrl).Display);
 
@@ -68,6 +71,20 @@ namespace Kiskac
                 check("Yanlış özet reddedilir", Throws(() => Updater.Verify(exe, badDigest)) != null);
                 var badVersion = new Updater.Release { Version = new Version(0, 0, 1), Digest = "sha256:" + hex };
                 check("Yanlış sürüm reddedilir", Throws(() => Updater.Verify(exe, badVersion)) != null);
+
+                // Video: yeniden örnekleme, GIF ve (Media Foundation varsa) MP4 + AAC. Kayıttaki gibi MTA iş parçacığında.
+                // Media Foundation olmayan makinelerde MP4 denetimleri SKIP olur.
+                string videoDir = Path.Combine(Path.GetTempPath(), "kiskac-selftest");
+                Directory.CreateDirectory(videoDir);
+                var video = new System.Threading.Thread(() =>
+                {
+                    try { VideoTest.Run(videoDir, (n, ok) => check(n, ok), log, false); }
+                    catch (Exception ex) { check("Video denetimleri: " + ex.Message, false); }
+                });
+                video.SetApartmentState(System.Threading.ApartmentState.MTA);
+                video.Start();
+                video.Join();
+
                 log.AppendLine("      Sürüm: " + Updater.Current);
             }
             catch (Exception ex)

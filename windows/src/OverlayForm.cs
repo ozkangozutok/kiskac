@@ -34,7 +34,7 @@ namespace Kiskac
         };
         static readonly float[] Widths = { 2, 3, 5, 8, 12 };
         static readonly Color Accent = Color.FromArgb(0, 120, 215);
-        const string HintText = "Alanı seçmek için sürükleyin   •   Tıklayın: tüm ekran   •   Esc: iptal";
+        string HintText = "Alanı seçmek için sürükleyin   •   Tıklayın: tüm ekran   •   Esc: iptal";
 
         enum Mode { None, Selecting, Moving, Resizing, Drawing }
 
@@ -42,7 +42,11 @@ namespace Kiskac
         readonly Bitmap dimmed;
         readonly Rectangle vbounds;
         float scale = 1f;
-        Font uiFont, glyphFont, letterFont;
+        Font uiFont, glyphFont, letterFont, badgeFont;
+
+        // Video/GIF düğmesine basıldıysa: kaydedilecek alan (ekran koordinatları) ve biçim. Tepsi kaydı başlatır.
+        public VideoFormat? RecordFormat { get; private set; }
+        public Rectangle RecordRegion { get; private set; }
 
         Rectangle sel;
         bool hasSel;
@@ -127,7 +131,9 @@ namespace Kiskac
                 buttons.Add(new ToolButton { Id = "color", ColorIndex = i, Tip = "Renk", SeparatorBefore = i == 0 });
             buttons.Add(new ToolButton { Id = "width", Tip = "Kalınlık  •  fare tekerleği" });
             buttons.Add(new ToolButton { Id = "undo", Tip = "Geri al (Ctrl+Z)", SeparatorBefore = true });
-            buttons.Add(new ToolButton { Id = "save", Tip = "Kaydet (Ctrl+S)" });
+            buttons.Add(new ToolButton { Id = "video", Tip = "Bu alanın videosunu kaydet, MP4 (V)", SeparatorBefore = true });
+            buttons.Add(new ToolButton { Id = "gif", Tip = "Bu alanı GIF olarak kaydet (G)" });
+            buttons.Add(new ToolButton { Id = "save", Tip = "Kaydet (Ctrl+S)", SeparatorBefore = true });
             buttons.Add(new ToolButton { Id = "copy", Tip = "Kopyala (Ctrl+C / Enter)" });
             buttons.Add(new ToolButton { Id = "close", Tip = "Kapat (Esc)" });
         }
@@ -144,6 +150,7 @@ namespace Kiskac
             uiFont = new Font("Segoe UI", 12.5f * scale, GraphicsUnit.Pixel);
             glyphFont = new Font("Segoe MDL2 Assets", 15f * scale, GraphicsUnit.Pixel);
             letterFont = new Font("Segoe UI", 17f * scale, FontStyle.Bold, GraphicsUnit.Pixel);
+            badgeFont = new Font("Segoe UI", 11f * scale, FontStyle.Bold, GraphicsUnit.Pixel);
         }
 
         protected override void OnShown(EventArgs e)
@@ -550,6 +557,8 @@ namespace Kiskac
                 case Keys.R: SetTool(Tool.Rect); return true;
                 case Keys.M: SetTool(Tool.Marker); return true;
                 case Keys.T: SetTool(Tool.Text); return true;
+                case Keys.V: StartRecording(VideoFormat.Mp4); return true;
+                case Keys.G: StartRecording(VideoFormat.Gif); return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -595,12 +604,28 @@ namespace Kiskac
                         if (editing != null) editing.Width = penWidth;
                         break;
                     case "undo": Undo(); break;
+                    case "video": StartRecording(VideoFormat.Mp4); return;
+                    case "gif": StartRecording(VideoFormat.Gif); return;
                     case "save": SaveAs(); return;
                     case "copy": CopyAndClose(); return;
                     case "close": Close(); return;
                 }
             }
             UpdateView();
+        }
+
+        // Tepsi menüsündeki "Video kaydet" ile açıldığında ipucu buna göre değişir.
+        public void UseVideoHint()
+        {
+            HintText = "Kaydedilecek alanı seçin, sonra ● (MP4) veya GIF düğmesine basın   •   Esc: iptal";
+        }
+
+        void StartRecording(VideoFormat format)
+        {
+            if (!hasSel || sel.Width < 16 || sel.Height < 16) return;
+            RecordRegion = new Rectangle(sel.X + vbounds.X, sel.Y + vbounds.Y, sel.Width, sel.Height);
+            RecordFormat = format;
+            Close();
         }
 
         float NextWidth()
@@ -906,6 +931,15 @@ namespace Kiskac
                                 g.DrawEllipse(edge, c.X - d / 2, c.Y - d / 2, d, d);
                             break;
                         }
+                    case "video":
+                        using (var ring = new Pen(Color.White, 2f * u))
+                            g.DrawEllipse(ring, c.X - 9 * u, c.Y - 9 * u, 18 * u, 18 * u);
+                        using (var red = new SolidBrush(Color.FromArgb(235, 45, 45)))
+                            g.FillEllipse(red, c.X - 5.5f * u, c.Y - 5.5f * u, 11 * u, 11 * u);
+                        break;
+                    case "gif":
+                        TextRenderer.DrawText(g, "GIF", badgeFont, r, Color.White, glyphFlags);
+                        break;
                     case "undo":
                         TextRenderer.DrawText(g, "", glyphFont, r, Color.White, glyphFlags);
                         break;
@@ -940,6 +974,7 @@ namespace Kiskac
                 if (uiFont != null) uiFont.Dispose();
                 if (glyphFont != null) glyphFont.Dispose();
                 if (letterFont != null) letterFont.Dispose();
+                if (badgeFont != null) badgeFont.Dispose();
             }
             base.Dispose(disposing);
         }

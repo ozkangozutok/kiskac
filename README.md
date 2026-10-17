@@ -23,6 +23,7 @@
 - **Seçimi düzenleme:** seçimi taşı, 8 tutamaçtan boyutlandır. Boyut piksel olarak görünür.
 - **Çizim araçları:** kalem, çizgi, ok, dikdörtgen, fosforlu kalem ve metin; 6 renk ve ayarlanabilir kalınlık.
 - **Kopyala veya kaydet:** panoya kopyala ya da PNG / JPEG olarak kaydet.
+- **Ekran videosu ve GIF (Windows):** seçili alanı sistem sesi ve/veya mikrofonla MP4 olarak ya da GIF olarak kaydet.
 - **Çoklu ekran ve yüksek çözünürlük:** Retina, 4K ve kesirli ölçeklemede net, tam piksel görüntü.
 - **Arka planda sessizce çalışır:** sistem tepsisinde (macOS'ta menü çubuğunda) durur, oturum açılınca kendiliğinden başlar.
 - **Ayarlanabilir:** kısayol, karartma, kayıt klasörü ve biçimi, sormadan kaydetme ve daha fazlası.
@@ -93,8 +94,25 @@ Kısayola bastığında ekran kararır. Alanı sürükleyerek seç (tek tıklama
 | Düz çizgi (45°) / kare | çizerken `Shift` | çizerken `⇧` |
 | Kalınlık | fare tekerleği | kaydırma |
 | Metinde yeni satır | `Shift+Enter` | `⇧↩` |
+| Video (MP4) · GIF kaydet | `V` · `G` (yalnızca Windows) | — |
+| Tam ekran video başlat / durdur | `Shift+PrtSc` (yalnızca Windows) | — |
 
 Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü alır.
+
+### Video ve GIF kaydı (Windows)
+
+1. Kısayola bas (ya da tepsi menüsünden **Video kaydet…**'i seç) ve kaydedilecek alanı seç.
+2. Araç çubuğunda **●** (MP4) ya da **GIF** düğmesine bas. Alanın çevresinde bir çerçeve ve altında küçük bir kontrol çubuğu belirir; kayıt **3 saniye geri saydıktan sonra** başlar.
+3. Geri sayım sırasında (ve kayıt boyunca) çubuktaki **🔊 sistem sesi** ve **🎤 mikrofon** düğmeleriyle sesi açıp kapatabilirsin. Simgenin üzerinde **fare tekerleği** o kaynağın ses seviyesini değiştirir (%0–%200); yanındaki küçük gösterge sesin gelip gelmediğini gösterir. Seçimlerin bir sonraki kayıt için hatırlanır. Beklemeden başlamak için **●**, vazgeçmek için **✕**.
+4. Durdurmak için çubuktaki **■** düğmesine ya da yeniden kısayola bas. **⏸** ile duraklatabilirsin; çubuğu boş yerinden sürükleyebilirsin.
+
+Kayıt *Videolar › Kıskaç* klasörüne kaydedilir; bildirime tıklayınca dosya klasörde gösterilir.
+
+**Tam ekran:** seçim yapmadan **Shift+PrtSc**'ye bas; imlecin bulunduğu ekran hemen kaydedilmeye başlar, aynı tuş kaydı durdurur. Tepsi menüsündeki **Tam ekran video** alt menüsünden belirli bir ekranı ya da tüm ekranları da seçebilirsin. (Kısayolu değiştirdiysen tam ekran kısayolu onun Shift'li hâlidir.)
+
+- **MP4:** H.264 video, AAC ses. Varsayılan ses kaynağı (sistem sesi, mikrofon, ikisi ya da yok) Ayarlar'dan da seçilir. Geri sayımı Ayarlar'dan kapatabilirsin.
+- **GIF:** ses yoktur; kısa klipler içindir. En uzun kenarı 1280 piksele küçültülür, varsayılan hız 10 kare/sn.
+- Çerçeve ve kontrol çubuğu kayda girmez. Fare imleci kayda girer (Ayarlar'dan kapatılabilir).
 
 ## Ayarlar
 
@@ -104,6 +122,7 @@ Tepsi simgesine sağ tıklayıp (macOS'ta menü çubuğundaki simgeye tıklayıp
 - **Genel:** oturum açılınca başlat, çekimde deklanşör sesi (macOS).
 - **Seçim ekranı:** karartma yoğunluğu, ipucu metni, son renk ve kalınlığı hatırlama.
 - **Kaydetme ve kopyalama:** kayıt klasörü (varsayılan *Resimler › Kıskaç*), biçim ve JPEG kalitesi, sormadan kaydetme, kaydettikten sonra panoya da kopyalama.
+- **Video kaydı (Windows):** video klasörü (varsayılan *Videolar › Kıskaç*), ses kaynağı, sistem sesi ve mikrofon seviyesi, MP4 ve GIF kare hızı, imleci kaydetme, geri sayım.
 - **Güncelleme:** sürüm bilgisi, şimdi denetle, otomatik denetim.
 
 ## Güncelleme
@@ -120,6 +139,14 @@ Uygulamanın bulunduğu klasöre yazma iznin yoksa (ör. `Program Files`) indirm
 - Tepsi (ya da menü çubuğu) simgesinin göründüğünden, yani Kıskaç'ın çalıştığından emin ol.
 - Başka bir ekran görüntüsü uygulaması (Lightshot, ShareX, Flameshot, masaüstünün kendi aracı) aynı tuşu kullanıyor olabilir. Ayarlar'dan başka bir kısayol seç.
 - Linux'ta Ayarlar penceresi kısayolun durumunu ve gerekirse masaüstüne atayabileceğin komutu gösterir.
+</details>
+
+<details>
+<summary><b>Windows'ta videoda mikrofon sesi yok</b></summary>
+
+- Ayarlar'da **Ses (MP4)** seçeneğinin *Mikrofon* ya da *Sistem sesi + mikrofon* olduğundan emin ol.
+- **Windows Ayarları › Gizlilik ve güvenlik › Mikrofon** bölümünde "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık olmalı.
+- Kıskaç varsayılan kayıt aygıtını kullanır; kayıt bittiğinde mikrofon açılamadıysa bildirimde yazar.
 </details>
 
 <details>
