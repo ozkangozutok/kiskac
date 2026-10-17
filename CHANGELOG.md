@@ -4,6 +4,7 @@ Bu dosya kullanıcıyı etkileyen değişiklikleri listeler. Sürümler [anlamsa
 
 ## Yayınlanmadı
 
+- **Windows: ekran videosu ve GIF kaydı.** Seçim ekranındaki ● (MP4) ya da GIF düğmesiyle seçili alan kaydedilir. MP4'e sistem sesi ve/veya mikrofon eklenebilir (H.264 + AAC, Windows'un kendi kodlayıcılarıyla; ek indirme yok). Kayıt sırasında çerçeve ve süre/duraklat/durdur çubuğu görünür; kısayola yeniden basmak kaydı durdurur. Yeni ayarlar: video klasörü, ses kaynağı, MP4 ve GIF kare hızı, imleci kaydetme.
 - Windows kaynak kodu `windows/` klasörüne taşındı; README kullanıcı odaklı yeniden yazıldı, katkı rehberi eklendi.
 
 ## 1.4.0

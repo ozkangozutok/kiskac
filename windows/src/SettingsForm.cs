@@ -14,7 +14,7 @@ namespace Kiskac
         readonly Label hotKeyMessage;
         readonly Label dimValue, qualityValue;
         readonly TrackBar quality;
-        readonly TextBox saveDir;
+        readonly TextBox saveDir, videoDir;
         bool recording;
 
         public SettingsForm(KeyboardHook hook, Action checkForUpdates)
@@ -104,6 +104,48 @@ namespace Kiskac
             AddFull(g, Check("Kaydettikten sonra panoya da kopyala", Settings.CopyAfterSave, v => Settings.CopyAfterSave = v));
             root.Controls.Add(g.Parent);
 
+            // ---------------------------------------------------------------- video kaydı
+            g = Group("Video kaydı (seçim ekranında ● veya GIF)");
+            videoDir = new TextBox { ReadOnly = true, Width = 240, Text = Settings.VideoDir, Margin = new Padding(3, 5, 3, 3) };
+            var browseVideo = new Button { Text = "Değiştir…", AutoSize = true };
+            browseVideo.Click += delegate { ChooseVideoDir(); };
+            row = Flow();
+            row.Controls.Add(videoDir);
+            row.Controls.Add(browseVideo);
+            AddRow(g, "Video klasörü", row);
+
+            var audio = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
+            audio.Items.AddRange(new object[] { "Ses yok", "Sistem sesi", "Mikrofon", "Sistem sesi + mikrofon" });
+            audio.SelectedIndex = (int)Settings.RecordAudio;
+            audio.SelectedIndexChanged += delegate { Settings.RecordAudio = (AudioMode)audio.SelectedIndex; };
+            AddRow(g, "Ses (MP4)", audio);
+
+            int[] mp4Rates = { 15, 30, 60 };
+            var mp4Fps = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
+            foreach (int r in mp4Rates) mp4Fps.Items.Add(r + " kare/sn");
+            mp4Fps.SelectedIndex = Array.IndexOf(mp4Rates, Settings.VideoFps);
+            mp4Fps.SelectedIndexChanged += delegate { Settings.VideoFps = mp4Rates[mp4Fps.SelectedIndex]; };
+            AddRow(g, "MP4 kare hızı", mp4Fps);
+
+            int[] gifRates = { 5, 8, 10, 15, 20 };
+            var gifFps = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
+            foreach (int r in gifRates) gifFps.Items.Add(r + " kare/sn");
+            int gi = Array.IndexOf(gifRates, Settings.GifFps);
+            gifFps.SelectedIndex = gi >= 0 ? gi : 2;
+            gifFps.SelectedIndexChanged += delegate { Settings.GifFps = gifRates[gifFps.SelectedIndex]; };
+            AddRow(g, "GIF kare hızı", gifFps);
+
+            AddFull(g, Check("Fare imlecini kayda dahil et", Settings.RecordCursor, v => Settings.RecordCursor = v));
+            AddFull(g, new Label
+            {
+                Text = "Kaydı durdurmak için kontrol çubuğundaki ■ düğmesine ya da yeniden " + Settings.HotKey.Display + " kısayoluna bas.",
+                AutoSize = true,
+                MaximumSize = new Size(440, 0),
+                ForeColor = SystemColors.GrayText,
+                Margin = new Padding(3, 4, 3, 2)
+            });
+            root.Controls.Add(g.Parent);
+
             // ---------------------------------------------------------------- güncelleme
             g = Group("Güncelleme");
             var check = new Button { Text = "Şimdi denetle", AutoSize = true };
@@ -171,6 +213,21 @@ namespace Kiskac
                 {
                     Settings.SaveDir = d.SelectedPath;
                     saveDir.Text = d.SelectedPath;
+                }
+            }
+        }
+
+        void ChooseVideoDir()
+        {
+            using (var d = new FolderBrowserDialog())
+            {
+                d.Description = "Video klasörünü seç";
+                d.SelectedPath = Settings.VideoDir;
+                d.ShowNewFolderButton = true;
+                if (d.ShowDialog(this) == DialogResult.OK)
+                {
+                    Settings.VideoDir = d.SelectedPath;
+                    videoDir.Text = d.SelectedPath;
                 }
             }
         }

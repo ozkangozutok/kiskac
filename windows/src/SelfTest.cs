@@ -68,6 +68,20 @@ namespace Kiskac
                 check("Yanlış özet reddedilir", Throws(() => Updater.Verify(exe, badDigest)) != null);
                 var badVersion = new Updater.Release { Version = new Version(0, 0, 1), Digest = "sha256:" + hex };
                 check("Yanlış sürüm reddedilir", Throws(() => Updater.Verify(exe, badVersion)) != null);
+
+                // Video: yeniden örnekleme, GIF ve (Media Foundation varsa) MP4 + AAC. Kayıttaki gibi MTA iş parçacığında.
+                // Media Foundation olmayan makinelerde MP4 denetimleri SKIP olur.
+                string videoDir = Path.Combine(Path.GetTempPath(), "kiskac-selftest");
+                Directory.CreateDirectory(videoDir);
+                var video = new System.Threading.Thread(() =>
+                {
+                    try { VideoTest.Run(videoDir, (n, ok) => check(n, ok), log, false); }
+                    catch (Exception ex) { check("Video denetimleri: " + ex.Message, false); }
+                });
+                video.SetApartmentState(System.Threading.ApartmentState.MTA);
+                video.Start();
+                video.Join();
+
                 log.AppendLine("      Sürüm: " + Updater.Current);
             }
             catch (Exception ex)
