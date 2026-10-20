@@ -35,11 +35,13 @@ version="$(tr -d '[:space:]' < "$root/VERSION")"
 iconutil -c icns -o "$app/Contents/Resources/Kiskac.icns" "$tmp/Kiskac.iconset"
 
 # Varsayılan yerel (ad-hoc) imza. SIGN_IDENTITY verilirse (ör. Developer ID) güvenli zaman damgası da eklenir.
+# Yetkiler (mikrofon) her iki imzada da gerekir; hardened runtime onlarsız mikrofonu reddeder.
 identity="${SIGN_IDENTITY:--}"
+entitlements="$here/Kiskac.entitlements"
 if [ "$identity" = "-" ]; then
-    codesign --force --sign - --options runtime "$app"
+    codesign --force --sign - --options runtime --entitlements "$entitlements" "$app"
 else
-    codesign --force --sign "$identity" --options runtime --timestamp "$app"
+    codesign --force --sign "$identity" --options runtime --timestamp --entitlements "$entitlements" "$app"
 fi
 codesign --verify --strict "$app"
 

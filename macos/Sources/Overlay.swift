@@ -50,8 +50,13 @@ final class OverlaySession {
     private var closed = false
     private var resignObserver: NSObjectProtocol?
     var onClose: (() -> Void)?
+    // ● / GIF düğmesi: kaydedilecek ekran, alan (ekranın sol üst köşesine göre, nokta) ve biçim
+    var onRecord: ((NSScreen, CGRect, VideoFormat) -> Void)?
+    // Metni kopyala: seçili alanın çizimsiz görüntüsü
+    var onOcr: ((CGImage) -> Void)?
 
-    init(shots: [ScreenShot]) {
+    // videoHint: menüdeki "Video kaydet…" ile açıldıysa ipucu buna göre değişir.
+    init(shots: [ScreenShot], videoHint: Bool = false) {
         let front = NSWorkspace.shared.frontmostApplication
         previousApp = front == NSRunningApplication.current ? nil : front
 
@@ -61,8 +66,8 @@ final class OverlaySession {
             let root = NSView(frame: CGRect(origin: .zero, size: size))
             root.wantsLayer = true
             let backdrop = BackdropView(frame: root.bounds, image: shot.image)
-            let canvas = CanvasView(frame: root.bounds, image: shot.image, backdrop: backdrop,
-                                    topInset: shot.screen.safeAreaInsets.top)
+            let canvas = CanvasView(frame: root.bounds, image: shot.image, backdrop: backdrop, screen: shot.screen,
+                                    hint: videoHint ? CanvasView.videoHintText : CanvasView.hintText)
             canvas.session = self
             root.addSubview(backdrop)
             root.addSubview(canvas)
@@ -173,6 +178,7 @@ final class CanvasView: NSView {
     ]
     static let widths: [CGFloat] = [2, 3, 5, 8, 12]
     static let hintText = "Alanı seçmek için sürükleyin   •   Tıklayın: tüm ekran   •   Esc: iptal"
+    static let videoHintText = "Kaydedilecek alanı seçin, sonra ● (MP4) veya GIF düğmesine basın   •   Esc: iptal"
 
     enum Mode { case none, selecting, moving, resizing, drawing }
 
@@ -181,6 +187,8 @@ final class CanvasView: NSView {
     private let backdrop: BackdropView
     private let pixelScale: CGFloat
     private let topInset: CGFloat
+    private let screen: NSScreen
+    private let hintText: String
     private let accent = NSColor.controlAccentColor
     private let uiFont = NSFont.systemFont(ofSize: 12, weight: .medium)
 
@@ -211,11 +219,13 @@ final class CanvasView: NSView {
     private var scrollAccum: CGFloat = 0
     private var symbols: [String: NSImage] = [:]
 
-    init(frame: CGRect, image: CGImage, backdrop: BackdropView, topInset: CGFloat) {
+    init(frame: CGRect, image: CGImage, backdrop: BackdropView, screen: NSScreen, hint: String) {
         self.image = image
         self.backdrop = backdrop
         self.pixelScale = CGFloat(image.width) / max(frame.width, 1)
-        self.topInset = topInset
+        self.topInset = screen.safeAreaInsets.top
+        self.screen = screen
+        self.hintText = hint
         super.init(frame: frame)
         if Settings.rememberStyle {
             colorIndex = min(max(Settings.lastColor, 0), Self.palette.count - 1)
@@ -250,6 +260,9 @@ final class CanvasView: NSView {
         }
         buttons.append(ToolButton("width", "Kalınlık  •  kaydırma"))
         buttons.append(ToolButton("undo", "Geri al (⌘Z)", separatorBefore: true))
+        buttons.append(ToolButton("video", "Bu alanın videosunu kaydet, MP4 (V)", separatorBefore: true))
+        buttons.append(ToolButton("gif", "Bu alanı GIF olarak kaydet (G)"))
+        buttons.append(ToolButton("ocr", "Metni kopyala: seçili alandaki yazıyı panoya al (O)", separatorBefore: true))
         buttons.append(ToolButton("save", "Kaydet (⌘S)"))
         buttons.append(ToolButton("copy", "Kopyala (⌘C / ↩)"))
         buttons.append(ToolButton("close", "Kapat (Esc)"))
@@ -351,7 +364,7 @@ final class CanvasView: NSView {
     }
 
     private func hintRect() -> CGRect {
-        let sz = textSize(Self.hintText)
+        let sz = textSize(hintText)
         let w = sz.width + 28, h = sz.height + 16
         return CGRect(x: ((bounds.width - w) / 2).rounded(), y: topInset + 40, width: w, height: h)
     }
@@ -641,6 +654,9 @@ final class CanvasView: NSView {
         case "r": setTool(.rect)
         case "m": setTool(.marker)
         case "t": setTool(.text)
+        case "v": startRecording(.mp4)
+        case "g": startRecording(.gif)
+        case "o": copyText()
         default: break
         }
     }
@@ -672,6 +688,9 @@ final class CanvasView: NSView {
                 penWidth = Self.widths.first { $0 > penWidth } ?? Self.widths[0]
                 editing?.width = penWidth
             case "undo": undo()
+            case "video": startRecording(.mp4); return
+            case "gif": startRecording(.gif); return
+            case "ocr": copyText(); return
             case "save": save(); return
             case "copy": copyAndClose(); return
             case "close": session?.close(); return
@@ -702,11 +721,33 @@ final class CanvasView: NSView {
         updateView()
     }
 
-    // Seçili alanı tam Retina çözünürlüğünde, çizimlerle birlikte üretir.
-    private func renderResult() -> CGImage? {
+    // Seçili alanın ham pikselleri (çizimler hariç)
+    private func cropped() -> CGImage? {
         let px = CGRect(x: sel.minX * pixelScale, y: sel.minY * pixelScale,
                         width: sel.width * pixelScale, height: sel.height * pixelScale).integral
-        guard px.width >= 1, px.height >= 1, let crop = image.cropping(to: px) else { return nil }
+        guard px.width >= 1, px.height >= 1 else { return nil }
+        return image.cropping(to: px)
+    }
+
+    // Seçim ekranı kapanır, kayıt çubuğu açılır; çizimler videoya girmez.
+    private func startRecording(_ format: VideoFormat) {
+        guard hasSel, sel.width >= 16, sel.height >= 16 else { return }
+        let record = session?.onRecord, scr = screen, r = sel
+        session?.close()
+        record?(scr, r, format)
+    }
+
+    // Yazı arka planda okunur; seçim ekranı hemen kapanır.
+    private func copyText() {
+        guard hasSel, sel.width >= 4, sel.height >= 4, let img = cropped() else { return }
+        let ocr = session?.onOcr
+        session?.close()
+        ocr?(img)
+    }
+
+    // Seçili alanı tam Retina çözünürlüğünde, çizimlerle birlikte üretir.
+    private func renderResult() -> CGImage? {
+        guard let crop = cropped() else { return nil }
         if shapes.isEmpty { return crop } // çizim yoksa pikseller olduğu gibi
 
         let space = image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
@@ -755,7 +796,7 @@ final class CanvasView: NSView {
         dirtyRect.fill(using: .copy)
 
         guard hasSel else {
-            if Settings.showHint { drawPill(hintRect(), alpha: 225 / 255, text: Self.hintText) }
+            if Settings.showHint { drawPill(hintRect(), alpha: 225 / 255, text: hintText) }
             return
         }
 
@@ -835,6 +876,7 @@ final class CanvasView: NSView {
         "select": "cursorarrow", "pen": "scribble", "line": "line.diagonal", "arrow": "arrow.up.right",
         "rect": "rectangle", "marker": "highlighter", "text": "textformat",
         "undo": "arrow.uturn.backward", "save": "square.and.arrow.down", "copy": "doc.on.doc", "close": "xmark",
+        "ocr": "text.viewfinder",
     ]
 
     private func symbol(_ id: String) -> NSImage? {
@@ -864,6 +906,17 @@ final class CanvasView: NSView {
             NSColor(white: 1, alpha: 90 / 255).set()
             dot.lineWidth = 1
             dot.stroke()
+        case "video":
+            NSColor.white.set()
+            let ring = NSBezierPath(ovalIn: CGRect(x: c.x - 9, y: c.y - 9, width: 18, height: 18))
+            ring.lineWidth = 2
+            ring.stroke()
+            Self.palette[0].set()
+            NSBezierPath(ovalIn: CGRect(x: c.x - 5.5, y: c.y - 5.5, width: 11, height: 11)).fill()
+        case "gif":
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .heavy), .foregroundColor: NSColor.white]
+            let sz = ("GIF" as NSString).size(withAttributes: attrs)
+            ("GIF" as NSString).draw(at: CGPoint(x: (c.x - sz.width / 2).rounded(), y: (c.y - sz.height / 2).rounded()), withAttributes: attrs)
         case "width":
             let d = min(4 + penWidth * 1.1, 20)
             let dot = NSBezierPath(ovalIn: CGRect(x: c.x - d / 2, y: c.y - d / 2, width: d, height: d))
@@ -919,7 +972,7 @@ enum Output {
         pb.writeObjects([item])
     }
 
-    private static func baseName() -> String {
+    static func baseName() -> String {
         let stamp = DateFormatter()
         stamp.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         return "Kıskaç_" + stamp.string(from: Date())

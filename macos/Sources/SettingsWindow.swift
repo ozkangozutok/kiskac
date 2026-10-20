@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
-// Ayarlar penceresinin durumu: kısayol kaydı, başlangıç öğesi ve kayıt klasörü.
+// Ayarlar penceresinin durumu: kısayol kaydı, başlangıç öğesi, kayıt ve video klasörü.
 // Diğer ayarlar doğrudan @AppStorage ile UserDefaults'a yazılır.
 @MainActor
 final class SettingsModel: ObservableObject {
@@ -11,6 +11,7 @@ final class SettingsModel: ObservableObject {
     @Published var recording = false
     @Published var loginEnabled = LoginItem.isEnabled
     @Published var saveDir = Settings.saveDir
+    @Published var videoDir = Settings.videoDir
 
     // AppDelegate bağlar: kısayolları yeniden kaydeder, ana kısayol kaydedildiyse true döner.
     var applyHotKeys: () -> Bool = { true }
@@ -22,6 +23,7 @@ final class SettingsModel: ObservableObject {
         hotKey = Settings.hotKey
         loginEnabled = LoginItem.isEnabled
         saveDir = Settings.saveDir
+        videoDir = Settings.videoDir
         hotKeyMessage = nil
     }
 
@@ -91,6 +93,20 @@ final class SettingsModel: ObservableObject {
             saveDir = url
         }
     }
+
+    func chooseVideoDir() {
+        let p = NSOpenPanel()
+        p.title = "Video klasörünü seç"
+        p.prompt = "Seç"
+        p.canChooseDirectories = true
+        p.canChooseFiles = false
+        p.canCreateDirectories = true
+        p.directoryURL = videoDir
+        if p.runModal() == .OK, let url = p.url {
+            Settings.videoDir = url
+            videoDir = url
+        }
+    }
 }
 
 struct SettingsView: View {
@@ -106,6 +122,13 @@ struct SettingsView: View {
     @AppStorage(Settings.Key.copyAfterSave) private var copyAfterSave = false
     @AppStorage(Settings.Key.downscale) private var downscale = false
     @AppStorage(Settings.Key.autoUpdate) private var autoUpdate = true
+    @AppStorage(Settings.Key.recordAudio) private var recordAudio = AudioMode.system.rawValue
+    @AppStorage(Settings.Key.systemVolume) private var systemVolume = 100
+    @AppStorage(Settings.Key.micVolume) private var micVolume = 100
+    @AppStorage(Settings.Key.videoFps) private var videoFps = 30
+    @AppStorage(Settings.Key.gifFps) private var gifFps = 10
+    @AppStorage(Settings.Key.recordCursor) private var recordCursor = true
+    @AppStorage(Settings.Key.recordCountdown) private var recordCountdown = true
 
     private let defaultKey = HotKey(keyCode: kVK_ANSI_2, modifiers: cmdKey | shiftKey)
 
@@ -184,6 +207,33 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Video kaydı (seçim ekranında ● veya GIF)") {
+                LabeledContent("Video klasörü") {
+                    HStack {
+                        Text(model.videoDir.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                            .lineLimit(1).truncationMode(.middle).foregroundStyle(.secondary)
+                        Button("Değiştir…") { model.chooseVideoDir() }
+                    }
+                }
+                Picker("Ses (MP4)", selection: $recordAudio) {
+                    Text("Ses yok").tag(0)
+                    Text("Sistem sesi").tag(AudioMode.system.rawValue)
+                    Text("Mikrofon").tag(AudioMode.microphone.rawValue)
+                    Text("Sistem sesi + mikrofon").tag(AudioMode([.system, .microphone]).rawValue)
+                }
+                volumeRow("Sistem sesi seviyesi", $systemVolume)
+                volumeRow("Mikrofon seviyesi", $micVolume)
+                Picker("MP4 kare hızı", selection: $videoFps) {
+                    ForEach(Settings.videoRates, id: \.self) { Text("\($0) kare/sn").tag($0) }
+                }
+                Picker("GIF kare hızı", selection: $gifFps) {
+                    ForEach(Settings.gifRates, id: \.self) { Text("\($0) kare/sn").tag($0) }
+                }
+                Toggle("Fare imlecini kayda dahil et", isOn: $recordCursor)
+                Toggle("▶ Başlat'a bastıktan sonra 3 saniye geri say", isOn: $recordCountdown)
+                Text(videoNote).font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Güncelleme") {
                 LabeledContent("Sürüm") {
                     HStack {
@@ -195,8 +245,29 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500)
-        .fixedSize(horizontal: false, vertical: true)
+        // Form içerik yüksekliğini aşınca kendisi kayar; pencere küçük ekranlara da sığar.
+        .frame(width: 520, height: Self.height)
+    }
+
+    private static var height: CGFloat {
+        min(860, (NSScreen.main?.visibleFrame.height ?? 900) - 80)
+    }
+
+    private var videoNote: String {
+        let main = model.hotKey.display
+        let start = model.hotKey.videoVariant.map { "\($0.display) imlecin bulunduğu ekranın kayıt çubuğunu açar, yeniden basınca kayıt başlar. " }
+            ?? "Tam ekran video menü çubuğundaki menüden başlatılır. "
+        return start + "Kaydı durdurmak için kontrol çubuğundaki ■ düğmesine, menü çubuğundaki kırmızı simgeye ya da yeniden \(main) kısayoluna bas."
+    }
+
+    private func volumeRow(_ title: String, _ value: Binding<Int>) -> some View {
+        LabeledContent(title) {
+            HStack {
+                Slider(value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Int($0.rounded()) }),
+                       in: 0...200, step: 10).frame(width: 180)
+                Text("%\(value.wrappedValue)").monospacedDigit().frame(width: 44, alignment: .trailing)
+            }
+        }
     }
 }
 

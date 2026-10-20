@@ -54,6 +54,21 @@ struct HotKey: Equatable {
         return nil
     }
 
+    // Tam ekran video kısayolu: aynı tuş + ⇧ (F13 → ⇧F13). Kısayolda ⇧ zaten varsa + ⌥ (⇧⌘2 → ⌥⇧⌘2).
+    // İkisi de varsa ya da sonuç kullanılamayan bir kısayolsa yoktur.
+    var videoVariant: HotKey? {
+        var m = modifiers
+        if m & shiftKey == 0 {
+            m |= shiftKey
+        } else if m & optionKey == 0 {
+            m |= optionKey
+        } else {
+            return nil
+        }
+        let v = HotKey(keyCode: keyCode, modifiers: m)
+        return v.problem == nil ? v : nil
+    }
+
     init(keyCode: Int, modifiers: Int) {
         self.keyCode = keyCode
         self.modifiers = modifiers
@@ -129,33 +144,46 @@ struct HotKey: Equatable {
 // Sistem genelinde kısayol. Carbon RegisterEventHotKey Erişilebilirlik veya
 // Girdi İzleme izni istemez; olay dinleme (event tap) yöntemleri ister.
 final class HotKeys {
-    nonisolated(unsafe) static var handler: (() -> Void)?
-    private var refs: [EventHotKeyRef] = []
+    // Kısayol numarası → eylem (ana iş parçacığında çalışır)
+    nonisolated(unsafe) private static var actions: [UInt32: () -> Void] = [:]
+    nonisolated(unsafe) private static var nextID: UInt32 = 1
+    private var refs: [(EventHotKeyRef, UInt32)] = []
     private var installed = false
 
     private func installHandler() {
         if installed { return }
         installed = true
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            DispatchQueue.main.async { HotKeys.handler?() }
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+            var hk = EventHotKeyID()
+            let st = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                       nil, MemoryLayout<EventHotKeyID>.size, nil, &hk)
+            guard st == noErr else { return st }
+            let n = hk.id
+            DispatchQueue.main.async { HotKeys.actions[n]?() }
             return noErr
         }, 1, &spec, nil, nil)
     }
 
     @discardableResult
-    func register(_ key: HotKey) -> Bool {
+    func register(_ key: HotKey, action: @escaping () -> Void) -> Bool {
         installHandler()
         var ref: EventHotKeyRef?
-        let id = EventHotKeyID(signature: OSType(0x4B534B43), id: UInt32(refs.count + 1)) // 'KSKC'
+        let n = Self.nextID
+        Self.nextID += 1
+        let id = EventHotKeyID(signature: OSType(0x4B534B43), id: n) // 'KSKC'
         let st = RegisterEventHotKey(UInt32(key.keyCode), UInt32(key.modifiers), id, GetApplicationEventTarget(), 0, &ref)
         guard st == noErr, let r = ref else { return false }
-        refs.append(r)
+        refs.append((r, n))
+        Self.actions[n] = action
         return true
     }
 
     func unregisterAll() {
-        for r in refs { UnregisterEventHotKey(r) }
+        for (r, n) in refs {
+            UnregisterEventHotKey(r)
+            Self.actions[n] = nil
+        }
         refs.removeAll()
     }
 

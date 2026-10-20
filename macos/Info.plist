@@ -32,6 +32,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT Lisansı</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kıskaç, ekran videosuna mikrofon sesini eklemek için mikrofonu kullanır.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 </dict>

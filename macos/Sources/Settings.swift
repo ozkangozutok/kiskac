@@ -23,7 +23,18 @@ enum Settings {
         static let copyAfterSave = "CopyAfterSave"
         static let downscale = "Downscale"
         static let autoUpdate = "AutoUpdate"
+        static let videoDir = "VideoDir"
+        static let recordAudio = "RecordAudio"
+        static let systemVolume = "SystemVolume"
+        static let micVolume = "MicVolume"
+        static let videoFps = "VideoFps"
+        static let gifFps = "GifFps"
+        static let recordCursor = "RecordCursor"
+        static let recordCountdown = "RecordCountdown"
     }
+
+    static let videoRates = [15, 30, 60]
+    static let gifRates = [5, 8, 10, 15, 20]
 
     static func registerDefaults() {
         d.register(defaults: [
@@ -42,6 +53,13 @@ enum Settings {
             Key.copyAfterSave: false,
             Key.downscale: false,
             Key.autoUpdate: true,
+            Key.recordAudio: AudioMode.system.rawValue,
+            Key.systemVolume: 100,
+            Key.micVolume: 100,
+            Key.videoFps: 30,
+            Key.gifFps: 10,
+            Key.recordCursor: true,
+            Key.recordCountdown: true,
         ])
     }
 
@@ -102,6 +120,52 @@ enum Settings {
         }
         set { d.set(newValue.path, forKey: Key.saveDir) }
     }
+
+    // ---------------------------------------------------------------- video kaydı
+
+    static var videoDir: URL {
+        get {
+            if let p = d.string(forKey: Key.videoDir) {
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: p, isDirectory: &isDir), isDir.boolValue {
+                    return URL(fileURLWithPath: p, isDirectory: true)
+                }
+            }
+            let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
+                ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Movies")
+            let dir = movies.appendingPathComponent("Kıskaç", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
+        set { d.set(newValue.path, forKey: Key.videoDir) }
+    }
+
+    // MP4 ses kaynakları; kayıt çubuğundaki son seçim hatırlanır.
+    static var recordAudio: AudioMode {
+        get { AudioMode(rawValue: min(max(d.integer(forKey: Key.recordAudio), 0), 3)) }
+        set { d.set(newValue.rawValue, forKey: Key.recordAudio) }
+    }
+
+    // Ses seviyeleri, yüzde (0–200)
+    static var systemVolume: Int {
+        get { min(max(d.integer(forKey: Key.systemVolume), 0), 200) }
+        set { d.set(min(max(newValue, 0), 200), forKey: Key.systemVolume) }
+    }
+
+    static var micVolume: Int {
+        get { min(max(d.integer(forKey: Key.micVolume), 0), 200) }
+        set { d.set(min(max(newValue, 0), 200), forKey: Key.micVolume) }
+    }
+
+    // MP4: 15, 30 veya 60; GIF: 5–20 kare/sn
+    static var videoFps: Int {
+        let v = d.integer(forKey: Key.videoFps)
+        return videoRates.contains(v) ? v : 30
+    }
+
+    static var gifFps: Int { min(max(d.integer(forKey: Key.gifFps), 5), 20) }
+    static var recordCursor: Bool { d.bool(forKey: Key.recordCursor) }
+    static var recordCountdown: Bool { d.bool(forKey: Key.recordCountdown) }
 
     static var initialized: Bool {
         get { d.bool(forKey: "Initialized") }
