@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         fullScreenItem.submenu = fullScreenMenu
         menu.addItem(fullScreenItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Kayıt klasörünü aç", action: #selector(openSaveDir), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Ekran görüntüsü klasörünü aç", action: #selector(openSaveDir), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Video klasörünü aç", action: #selector(openVideoDir), keyEquivalent: ""))
         permissionItem = NSMenuItem(title: "Ekran kaydı izni ver…", action: #selector(openPermissionSettings), keyEquivalent: "")
         menu.addItem(permissionItem)

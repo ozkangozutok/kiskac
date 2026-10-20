@@ -82,7 +82,7 @@ final class SettingsModel: ObservableObject {
 
     func chooseSaveDir() {
         let p = NSOpenPanel()
-        p.title = "Kayıt klasörünü seç"
+        p.title = "Ekran görüntüsü klasörünü seç"
         p.prompt = "Seç"
         p.canChooseDirectories = true
         p.canChooseFiles = false
@@ -179,7 +179,7 @@ struct SettingsView: View {
             }
 
             Section("Kaydetme ve kopyalama") {
-                LabeledContent("Kayıt klasörü") {
+                LabeledContent("Ekran görüntüsü klasörü") {
                     HStack {
                         Text(model.saveDir.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
                             .lineLimit(1).truncationMode(.middle).foregroundStyle(.secondary)
