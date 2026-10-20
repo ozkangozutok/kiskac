@@ -25,6 +25,19 @@ $common = @(
     '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll', '/r:System.Web.Extensions.dll'
 )
 
+# Metin tanıma (Windows.Media.Ocr) için Windows Runtime tanımları: Windows 10+ ile gelir.
+$fw = Split-Path $csc -Parent
+$winmd = Join-Path $env:WINDIR 'System32\WinMetadata'
+$common += @(
+    "/r:$(Join-Path $fw 'System.Runtime.dll')",
+    "/r:$(Join-Path $winmd 'Windows.Foundation.winmd')",
+    "/r:$(Join-Path $winmd 'Windows.Globalization.winmd')",
+    "/r:$(Join-Path $winmd 'Windows.Graphics.winmd')",
+    "/r:$(Join-Path $winmd 'Windows.Media.winmd')",
+    "/r:$(Join-Path $winmd 'Windows.Security.winmd')",
+    "/r:$(Join-Path $winmd 'Windows.Storage.winmd')"
+)
+
 # 1) Simgesiz derle, uygulamanın kendi logosunu .ico olarak dışa aktar
 $tmp = Join-Path $out 'Kiskac.tmp.exe'
 $ico = Join-Path $out 'Kiskac.ico'

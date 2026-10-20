@@ -48,6 +48,9 @@ namespace Kiskac
         public VideoFormat? RecordFormat { get; private set; }
         public Rectangle RecordRegion { get; private set; }
 
+        // "Metni kopyala"ya basıldıysa: okunacak görüntü (sahipliği tepsiye geçer)
+        public Bitmap OcrImage { get; private set; }
+
         Rectangle sel;
         bool hasSel;
         Mode mode = Mode.None;
@@ -133,7 +136,8 @@ namespace Kiskac
             buttons.Add(new ToolButton { Id = "undo", Tip = "Geri al (Ctrl+Z)", SeparatorBefore = true });
             buttons.Add(new ToolButton { Id = "video", Tip = "Bu alanın videosunu kaydet, MP4 (V)", SeparatorBefore = true });
             buttons.Add(new ToolButton { Id = "gif", Tip = "Bu alanı GIF olarak kaydet (G)" });
-            buttons.Add(new ToolButton { Id = "save", Tip = "Kaydet (Ctrl+S)", SeparatorBefore = true });
+            buttons.Add(new ToolButton { Id = "ocr", Tip = "Metni kopyala: seçili alandaki yazıyı panoya al (O)", SeparatorBefore = true });
+            buttons.Add(new ToolButton { Id = "save", Tip = "Kaydet (Ctrl+S)" });
             buttons.Add(new ToolButton { Id = "copy", Tip = "Kopyala (Ctrl+C / Enter)" });
             buttons.Add(new ToolButton { Id = "close", Tip = "Kapat (Esc)" });
         }
@@ -559,6 +563,7 @@ namespace Kiskac
                 case Keys.T: SetTool(Tool.Text); return true;
                 case Keys.V: StartRecording(VideoFormat.Mp4); return true;
                 case Keys.G: StartRecording(VideoFormat.Gif); return true;
+                case Keys.O: CopyText(); return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -606,6 +611,7 @@ namespace Kiskac
                     case "undo": Undo(); break;
                     case "video": StartRecording(VideoFormat.Mp4); return;
                     case "gif": StartRecording(VideoFormat.Gif); return;
+                    case "ocr": CopyText(); return;
                     case "save": SaveAs(); return;
                     case "copy": CopyAndClose(); return;
                     case "close": Close(); return;
@@ -618,6 +624,20 @@ namespace Kiskac
         public void UseVideoHint()
         {
             HintText = "Kaydedilecek alanı seçin, sonra ● (MP4) veya GIF düğmesine basın   •   Esc: iptal";
+        }
+
+        // Seçili alanın ham görüntüsü (çizimler hariç) tepsiye verilir; yazı orada, arka planda okunur.
+        void CopyText()
+        {
+            if (!hasSel || sel.Width < 4 || sel.Height < 4) return;
+            var img = new Bitmap(sel.Width, sel.Height, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(img))
+            {
+                g.CompositingMode = CompositingMode.SourceCopy;
+                g.DrawImage(shot, new Rectangle(0, 0, sel.Width, sel.Height), sel, GraphicsUnit.Pixel);
+            }
+            OcrImage = img;
+            Close();
         }
 
         void StartRecording(VideoFormat format)
@@ -940,6 +960,17 @@ namespace Kiskac
                     case "gif":
                         TextRenderer.DrawText(g, "GIF", badgeFont, r, Color.White, glyphFlags);
                         break;
+                    case "ocr":
+                        {
+                            // tarama çerçevesi köşeleri + ortada "T"
+                            g.DrawLines(pen, new[] { P(c, u, -9, -9 + 4), P(c, u, -9, -9), P(c, u, -9 + 4, -9) });
+                            g.DrawLines(pen, new[] { P(c, u, 9 - 4, -9), P(c, u, 9, -9), P(c, u, 9, -9 + 4) });
+                            g.DrawLines(pen, new[] { P(c, u, 9, 9 - 4), P(c, u, 9, 9), P(c, u, 9 - 4, 9) });
+                            g.DrawLines(pen, new[] { P(c, u, -9 + 4, 9), P(c, u, -9, 9), P(c, u, -9, 9 - 4) });
+                            g.DrawLine(pen, P(c, u, -4, -4), P(c, u, 4, -4));
+                            g.DrawLine(pen, P(c, u, 0, -4), P(c, u, 0, 5));
+                            break;
+                        }
                     case "undo":
                         TextRenderer.DrawText(g, "", glyphFont, r, Color.White, glyphFlags);
                         break;

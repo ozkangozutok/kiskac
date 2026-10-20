@@ -85,6 +85,8 @@ namespace Kiskac
                 video.Start();
                 video.Join();
 
+                OcrCheck(check, log);
+
                 log.AppendLine("      Sürüm: " + Updater.Current);
             }
             catch (Exception ex)
@@ -96,6 +98,32 @@ namespace Kiskac
             log.AppendLine(fails == 0 ? "Tüm denetimler geçti." : fails + " denetim başarısız.");
             File.WriteAllText(logPath, log.ToString(), Encoding.UTF8);
             return fails == 0 ? 0 : 1;
+        }
+
+        // Metin tanıma: iki satırlık bir görüntü çizilir ve okunur. OCR dili yüklü değilse SKIP.
+        static void OcrCheck(Action<string, bool> check, StringBuilder log)
+        {
+            if (!TextRecognizer.Available)
+            {
+                log.AppendLine("SKIP  Metin tanıma: bu makinede OCR dili yok");
+                return;
+            }
+            using (var bmp = new System.Drawing.Bitmap(520, 90))
+            {
+                using (var g = System.Drawing.Graphics.FromImage(bmp))
+                using (var font = new System.Drawing.Font("Segoe UI", 20f, System.Drawing.GraphicsUnit.Pixel))
+                {
+                    g.Clear(System.Drawing.Color.White);
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                    g.DrawString("Kıskaç metin tanıma 2026", font, System.Drawing.Brushes.Black, 10, 12);
+                    g.DrawString("İkinci satır: çağrı şöyle", font, System.Drawing.Brushes.Black, 10, 50);
+                }
+                var text = TextRecognizer.Recognize(bmp);
+                log.AppendLine("      Metin tanıma (" + TextRecognizer.LanguageName + "): " + text.Replace("\r\n", " ⏎ "));
+                var lines = text.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                check("Metin tanıma: iki satır okunur", lines.Length == 2);
+                check("Metin tanıma: kelimeler doğru", text.Contains("metin") && text.Contains("2026") && text.Contains("satır"));
+            }
         }
 
         static Exception Throws(Action a)

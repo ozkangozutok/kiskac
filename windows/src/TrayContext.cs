@@ -240,9 +240,57 @@ namespace Kiskac
                 overlay = null;
                 bmp.Dispose();
                 if (form.RecordFormat.HasValue) StartRecording(form.RecordRegion, form.RecordFormat.Value);
+                if (form.OcrImage != null) CopyTextFrom(form.OcrImage);
             };
             form.Show();
             Util.Log("Overlay gösterildi: " + vb);
+        }
+
+        // ---------------------------------------------------------------- metin kopyalama (OCR)
+
+        // Yazıyı arka planda okur, sonucu panoya koyar (pano işlemi arayüz iş parçacığında).
+        void CopyTextFrom(Bitmap image)
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                string text = null;
+                Exception error = null;
+                try { text = TextRecognizer.Recognize(image); }
+                catch (Exception ex)
+                {
+                    error = ex.InnerException ?? ex;
+                    Util.Log("Metin tanıma hatası: " + ex);
+                }
+                finally { image.Dispose(); }
+
+                try { invoker.BeginInvoke(new Action(() => OnTextRecognized(text, error))); }
+                catch (InvalidOperationException) { }
+            });
+        }
+
+        void OnTextRecognized(string text, Exception error)
+        {
+            if (exiting) return;
+            if (error != null)
+            {
+                ShowBalloon("Metin okunamadı", error.Message, ToolTipIcon.Warning, null);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                ShowBalloon("Yazı bulunamadı", "Seçili alanda okunabilir bir yazı yok. Daha geniş ya da daha net bir alan seçmeyi dene.", ToolTipIcon.Info, null);
+                return;
+            }
+            try { Clipboard.SetDataObject(text, true, 10, 100); }
+            catch (Exception ex)
+            {
+                ShowBalloon("Panoya kopyalanamadı", ex.Message, ToolTipIcon.Warning, null);
+                return;
+            }
+            int lines = text.Split('\n').Length;
+            string preview = text.Replace("\r", "").Replace('\n', ' ');
+            if (preview.Length > 120) preview = preview.Substring(0, 117) + "…";
+            ShowBalloon("Metin kopyalandı (" + lines + " satır)", preview, ToolTipIcon.Info, null);
         }
 
         // ---------------------------------------------------------------- video kaydı

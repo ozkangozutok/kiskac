@@ -23,6 +23,7 @@
 - **Seçimi düzenleme:** seçimi taşı, 8 tutamaçtan boyutlandır. Boyut piksel olarak görünür.
 - **Çizim araçları:** kalem, çizgi, ok, dikdörtgen, fosforlu kalem ve metin; 6 renk ve ayarlanabilir kalınlık.
 - **Kopyala veya kaydet:** panoya kopyala ya da PNG / JPEG olarak kaydet.
+- **Metni kopyala (Windows):** seçili alandaki yazıyı (ekran görüntüsü, video karesi, düzenlenemeyen metin) okuyup panoya kopyalar. Türkçe karakterler dahil; Windows'un yerleşik metin tanıması kullanılır, internete bağlanmaz.
 - **Ekran videosu ve GIF (Windows):** seçili alanı sistem sesi ve/veya mikrofonla MP4 olarak ya da GIF olarak kaydet.
 - **Çoklu ekran ve yüksek çözünürlük:** Retina, 4K ve kesirli ölçeklemede net, tam piksel görüntü.
 - **Arka planda sessizce çalışır:** sistem tepsisinde (macOS'ta menü çubuğunda) durur, oturum açılınca kendiliğinden başlar.
@@ -94,10 +95,17 @@ Kısayola bastığında ekran kararır. Alanı sürükleyerek seç (tek tıklama
 | Düz çizgi (45°) / kare | çizerken `Shift` | çizerken `⇧` |
 | Kalınlık | fare tekerleği | kaydırma |
 | Metinde yeni satır | `Shift+Enter` | `⇧↩` |
+| Seçili alandaki metni kopyala | `O` (yalnızca Windows) | — |
 | Video (MP4) · GIF kaydet | `V` · `G` (yalnızca Windows) | — |
 | Tam ekran video başlat / durdur | `Shift+PrtSc` (yalnızca Windows) | — |
 
 Kıskaç zaten çalışırken uygulamayı yeniden açmak da ekran görüntüsü alır.
+
+### Metni kopyala (Windows)
+
+Alanı seç ve araç çubuğundaki **metni kopyala** düğmesine (köşeli çerçeve içinde **T**) ya da **`O`**'ya bas. Seçili alandaki yazı satır düzeniyle panoya kopyalanır; bildirimde kaç satır kopyalandığı ve metnin başı görünür. Okuma Windows'un yerleşik metin tanımasıyla bilgisayarında yapılır, hiçbir şey internete gönderilmez.
+
+Tanınan diller Windows'ta yüklü dillere bağlıdır (Türkçe Windows'ta Türkçe ve İngilizce metin okunur). Başka bir dili eklemek için **Windows Ayarları › Zaman ve dil › Dil ve bölge**. Simgeler bazen harf gibi okunabilir; en iyi sonuç için yalnızca yazının olduğu alanı seç.
 
 ### Video ve GIF kaydı (Windows)
 

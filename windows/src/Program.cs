@@ -36,6 +36,27 @@ namespace Kiskac
             if ((args.Length == 9 || args.Length == 10) && args[0] == "--record")
                 return VideoTest.RecordCli(args);
 
+            // Ekran bölgesindeki yazıyı oku (geliştirme ve doğrulama için): --ocr <x> <y> <gen> <yük> <çıktı.txt>
+            if (args.Length == 6 && args[0] == "--ocr")
+            {
+                int code = 1;
+                var t = new Thread(() =>
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    using (var bmp = Util.CaptureScreen(new System.Drawing.Rectangle(int.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]))))
+                    {
+                        string text;
+                        try { text = TextRecognizer.Recognize(bmp); code = 0; }
+                        catch (Exception ex) { text = "HATA: " + ex; }
+                        System.IO.File.WriteAllText(args[5], "süre: " + sw.ElapsedMilliseconds + " ms\r\n" + text, System.Text.Encoding.UTF8);
+                    }
+                });
+                t.SetApartmentState(ApartmentState.MTA);
+                t.Start();
+                t.Join();
+                return code;
+            }
+
             // Güncellemeden sonra: eski süreç kapanana kadar bekle, artıkları temizle.
             bool justUpdated = false;
             int oldPid;

@@ -4,6 +4,8 @@ Bu dosya kullanıcıyı etkileyen değişiklikleri listeler. Sürümler [anlamsa
 
 ## Yayınlanmadı
 
+- **Windows: metni kopyala (OCR).** Seçim ekranındaki yeni düğme ya da `O` tuşu, seçili alandaki yazıyı okuyup satır düzeniyle panoya kopyalar. Windows'un yerleşik metin tanıması kullanılır (Türkçe karakterler dahil, ek indirme ve internet bağlantısı yok).
+
 ## 1.5.0
 
 - **Windows: ekran videosu ve GIF kaydı.** Seçim ekranındaki ● (MP4) ya da GIF düğmesiyle seçili alan kaydedilir. MP4'e sistem sesi ve/veya mikrofon eklenebilir (H.264 + AAC, Windows'un kendi kodlayıcılarıyla; ek indirme yok). Kayıt sırasında çerçeve ve süre/duraklat/durdur çubuğu görünür; kısayola yeniden basmak kaydı durdurur. Yeni ayarlar: video klasörü, ses kaynağı, MP4 ve GIF kare hızı, imleci kaydetme.
