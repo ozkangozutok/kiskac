@@ -112,13 +112,18 @@ enum Settings {
                     return URL(fileURLWithPath: p, isDirectory: true)
                 }
             }
-            let pics = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
-                ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures")
-            let dir = pics.appendingPathComponent("Kıskaç", isDirectory: true)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir
+            return defaultSaveDir
         }
         set { d.set(newValue.path, forKey: Key.saveDir) }
+    }
+
+    // Resimler › Kıskaç (izin gerektirmez)
+    static var defaultSaveDir: URL {
+        let pics = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures")
+        let dir = pics.appendingPathComponent("Kıskaç", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     // ---------------------------------------------------------------- video kaydı
@@ -131,13 +136,18 @@ enum Settings {
                     return URL(fileURLWithPath: p, isDirectory: true)
                 }
             }
-            let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
-                ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Movies")
-            let dir = movies.appendingPathComponent("Kıskaç", isDirectory: true)
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir
+            return defaultVideoDir
         }
         set { d.set(newValue.path, forKey: Key.videoDir) }
+    }
+
+    // Filmler › Kıskaç (izin gerektirmez)
+    static var defaultVideoDir: URL {
+        let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Movies")
+        let dir = movies.appendingPathComponent("Kıskaç", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     // MP4 ses kaynakları; kayıt çubuğundaki son seçim hatırlanır.
@@ -175,6 +185,59 @@ enum Settings {
     static var askedScreenCapture: Bool {
         get { d.bool(forKey: "AskedScreenCapture") }
         set { d.set(newValue, forKey: "AskedScreenCapture") }
+    }
+}
+
+// Klasöre yazma izni. macOS'ta Masaüstü, Belgeler, İndirilenler, iCloud Drive ve harici diskler korumalıdır;
+// izin yoksa yazma EPERM ile reddedilir. Uygulama bu izni önceden isteyemez: denetim gerçekten bir deneme
+// dosyası yazar, izin henüz sorulmadıysa macOS izin penceresini bu sırada açar.
+enum FolderAccess {
+    static let privacyURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!
+
+    // Yazılabiliyorsa nil, değilse kullanıcıya gösterilecek neden
+    static func problem(_ dir: URL) -> String? {
+        let probe = dir.appendingPathComponent(".kiskac-yazma-denetimi-\(getpid())")
+        let fd = open(probe.path, O_WRONLY | O_CREAT | O_TRUNC, 0o600)
+        if fd >= 0 {
+            close(fd)
+            unlink(probe.path)
+            return nil
+        }
+        return message(errno, dir)
+    }
+
+    static func display(_ dir: URL) -> String {
+        dir.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+    }
+
+    static func message(_ code: Int32, _ dir: URL) -> String {
+        let name = display(dir)
+        switch code {
+        case EPERM, EACCES:
+            return "Kıskaç'ın \(name) klasörüne yazma izni yok. Sistem Ayarları › Gizlilik ve Güvenlik › Dosyalar ve Klasörler bölümünden izin ver ya da başka bir klasör seç."
+        case EROFS: return "\(name) salt okunur bir diskte; başka bir klasör seç."
+        case ENOENT: return "\(name) klasörü bulunamadı."
+        case ENOSPC: return "Diskte yer kalmadı."
+        default: return "\(name) klasörüne yazılamıyor: \(String(cString: strerror(code)))"
+        }
+    }
+
+    // Hata bir izin reddi mi (Cocoa 513 ya da POSIX EPERM/EACCES, iç içe hatalar dahil)
+    static func isPermissionError(_ error: Error) -> Bool {
+        var e: NSError? = error as NSError
+        while let n = e {
+            if n.domain == NSCocoaErrorDomain && n.code == NSFileWriteNoPermissionError { return true }
+            if n.domain == NSPOSIXErrorDomain && (n.code == Int(EPERM) || n.code == Int(EACCES)) { return true }
+            e = n.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return false
+    }
+
+    // Klasör yazılamıyorsa varsayılan klasör kullanılır: (yazılacak klasör, uyarı). Klasör nil: hiçbirine yazılamıyor.
+    static func usable(_ dir: URL, fallback: URL) -> (URL?, String?) {
+        guard let p = problem(dir) else { return (dir, nil) }
+        if dir.standardizedFileURL != fallback.standardizedFileURL && problem(fallback) == nil { return (fallback, p) }
+        return (nil, p)
     }
 }
 

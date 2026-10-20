@@ -12,6 +12,8 @@ final class SettingsModel: ObservableObject {
     @Published var loginEnabled = LoginItem.isEnabled
     @Published var saveDir = Settings.saveDir
     @Published var videoDir = Settings.videoDir
+    @Published var saveDirProblem: String?
+    @Published var videoDirProblem: String?
 
     // AppDelegate bağlar: kısayolları yeniden kaydeder, ana kısayol kaydedildiyse true döner.
     var applyHotKeys: () -> Bool = { true }
@@ -25,6 +27,13 @@ final class SettingsModel: ObservableObject {
         saveDir = Settings.saveDir
         videoDir = Settings.videoDir
         hotKeyMessage = nil
+        checkFolders()
+    }
+
+    // Klasörlere gerçekten yazılabiliyor mu (korumalı klasörde macOS izin penceresini burada açabilir)
+    func checkFolders() {
+        saveDirProblem = FolderAccess.problem(saveDir)
+        videoDirProblem = FolderAccess.problem(videoDir)
     }
 
     func toggleRecording() {
@@ -91,6 +100,7 @@ final class SettingsModel: ObservableObject {
         if p.runModal() == .OK, let url = p.url {
             Settings.saveDir = url
             saveDir = url
+            saveDirProblem = FolderAccess.problem(url)
         }
     }
 
@@ -105,6 +115,7 @@ final class SettingsModel: ObservableObject {
         if p.runModal() == .OK, let url = p.url {
             Settings.videoDir = url
             videoDir = url
+            videoDirProblem = FolderAccess.problem(url)
         }
     }
 }
@@ -186,6 +197,7 @@ struct SettingsView: View {
                         Button("Değiştir…") { model.chooseSaveDir() }
                     }
                 }
+                if let p = model.saveDirProblem { folderProblem(p) }
                 Picker("Biçim", selection: $format) {
                     Text("PNG").tag("png")
                     Text("JPEG").tag("jpeg")
@@ -215,6 +227,7 @@ struct SettingsView: View {
                         Button("Değiştir…") { model.chooseVideoDir() }
                     }
                 }
+                if let p = model.videoDirProblem { folderProblem(p) }
                 Picker("Ses (MP4)", selection: $recordAudio) {
                     Text("Ses yok").tag(0)
                     Text("Sistem sesi").tag(AudioMode.system.rawValue)
@@ -258,6 +271,18 @@ struct SettingsView: View {
         let start = model.hotKey.videoVariant.map { "\($0.display) imlecin bulunduğu ekranın kayıt çubuğunu açar, yeniden basınca kayıt başlar. " }
             ?? "Tam ekran video menü çubuğundaki menüden başlatılır. "
         return start + "Kaydı durdurmak için kontrol çubuğundaki ■ düğmesine, menü çubuğundaki kırmızı simgeye ya da yeniden \(main) kısayoluna bas."
+    }
+
+    private func folderProblem(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(text, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout).foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("İzin ayarlarını aç") { NSWorkspace.shared.open(FolderAccess.privacyURL) }
+                Button("Yeniden denetle") { model.checkFolders() }
+            }
+        }
     }
 
     private func volumeRow(_ title: String, _ value: Binding<Int>) -> some View {

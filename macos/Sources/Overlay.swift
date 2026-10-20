@@ -982,8 +982,15 @@ enum Output {
     static func save(_ img: CGImage, pointSize: CGSize, aboveLevel: NSWindow.Level) -> Bool {
         let level = NSWindow.Level(rawValue: aboveLevel.rawValue + 1)
         let url: URL
+        var fallbackNote: String?
         if Settings.quickSave {
-            let dir = Settings.saveDir
+            // Klasöre yazılamıyorsa görüntü kaybolmasın: varsayılan klasöre kaydedilir.
+            let (usable, warning) = FolderAccess.usable(Settings.saveDir, fallback: Settings.defaultSaveDir)
+            guard let dir = usable else {
+                failureAlert(warning ?? "Kayıt klasörüne yazılamıyor.", permission: true, level: level)
+                return false
+            }
+            fallbackNote = warning
             let ext = Settings.jpeg ? "jpg" : "png"
             var candidate = dir.appendingPathComponent(baseName() + "." + ext)
             var n = 2
@@ -1017,16 +1024,28 @@ enum Output {
             try d.write(to: url, options: .atomic)
             if !Settings.quickSave { Settings.saveDir = url.deletingLastPathComponent() }
         } catch {
-            let a = NSAlert()
-            a.messageText = "Kaydedilemedi"
-            a.informativeText = error.localizedDescription
-            a.alertStyle = .warning
-            a.window.level = level
-            a.runModal()
+            let permission = FolderAccess.isPermissionError(error)
+            failureAlert(permission ? FolderAccess.message(EPERM, url.deletingLastPathComponent()) : error.localizedDescription,
+                         permission: permission, level: level)
             return false
         }
         if Settings.copyAfterSave { copy(img, pointSize: pointSize) }
+        if let note = fallbackNote {
+            Toast.show("Ekran görüntüsü klasörüne yazılamadı",
+                       note + " Görüntü Resimler › Kıskaç klasörüne kaydedildi.") { NSWorkspace.shared.open(FolderAccess.privacyURL) }
+        }
         return true
+    }
+
+    private static func failureAlert(_ text: String, permission: Bool, level: NSWindow.Level) {
+        let a = NSAlert()
+        a.messageText = "Kaydedilemedi"
+        a.informativeText = text
+        a.alertStyle = .warning
+        a.window.level = level
+        a.addButton(withTitle: "Tamam")
+        if permission { a.addButton(withTitle: "İzin ayarlarını aç") }
+        if a.runModal() == .alertSecondButtonReturn { NSWorkspace.shared.open(FolderAccess.privacyURL) }
     }
 }
 

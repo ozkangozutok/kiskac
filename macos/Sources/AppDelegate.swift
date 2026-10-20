@@ -81,6 +81,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                   "\(Settings.hotKey.display) başka bir uygulama tarafından kullanılıyor. Ayarlar'dan başka bir kısayol seçebilirsin.")
         }
 
+        checkFolders()
+
         if !Settings.initialized {
             Settings.initialized = true
             LoginItem.set(true)
@@ -88,6 +90,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                   "\(Settings.hotKey.display) tuşlarına bas ve alanı seç. ⌘C kopyalar, ⌘S kaydeder.\n\nKıskaç menü çubuğunda çalışır; kısayolu ve diğer ayarları oradan değiştirebilirsin. İlk çekimde macOS ekran kaydı izni isteyecek.",
                   style: .informational)
             requestPermission()
+        }
+    }
+
+    // Açılışta kayıt klasörlerine yazılabildiği denetlenir; izin yoksa önceden uyarılır.
+    private func checkFolders() {
+        let problems = [Settings.saveDir, Settings.videoDir].compactMap(FolderAccess.problem)
+        guard let first = problems.first else { return }
+        Toast.show("Klasöre yazma izni yok", first + " Ayarları açmak için tıkla.") {
+            NSWorkspace.shared.open(FolderAccess.privacyURL)
         }
     }
 
@@ -359,7 +370,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard recorder == nil, !terminating else { return }
         if !requestPermission() { return }
         let gif = format == .gif
-        let dir = Settings.videoDir, ext = gif ? "gif" : "mp4"
+        // Video klasörüne yazılamıyorsa kayıt kaybolmasın: Filmler › Kıskaç'a yazılır.
+        let (usable, folderWarning) = FolderAccess.usable(Settings.videoDir, fallback: Settings.defaultVideoDir)
+        guard let dir = usable else {
+            Toast.show("Video kaydedilemez", (folderWarning ?? "Video klasörüne yazılamıyor.") + " Ayarları açmak için tıkla.") {
+                NSWorkspace.shared.open(FolderAccess.privacyURL)
+            }
+            return
+        }
+        if let w = folderWarning {
+            Toast.show("Video klasörüne yazılamıyor", w + " Bu kayıt Filmler › Kıskaç klasörüne kaydedilecek.") {
+                NSWorkspace.shared.open(FolderAccess.privacyURL)
+            }
+        }
+        let ext = gif ? "gif" : "mp4"
         let base = Output.baseName()
         var url = dir.appendingPathComponent(base + "." + ext)
         var n = 2
@@ -466,7 +490,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         if let error {
-            Toast.show("Kayıt başarısız", error.localizedDescription)
+            if FolderAccess.isPermissionError(error) {
+                Toast.show("Kayıt başarısız: yazma izni yok",
+                           FolderAccess.message(EPERM, url.deletingLastPathComponent()) + " Ayarları açmak için tıkla.") {
+                    NSWorkspace.shared.open(FolderAccess.privacyURL)
+                }
+            } else {
+                Toast.show("Kayıt başarısız", error.localizedDescription)
+            }
             return
         }
         var text = "\(url.lastPathComponent) kaydedildi. Açmak için tıkla."

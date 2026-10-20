@@ -37,6 +37,7 @@ enum SelfTest {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("kiskac-selftest-\(getpid())")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
+        folders(dir)
         gif(dir)
         await mp4(dir)
         await ocr()
@@ -105,6 +106,34 @@ enum SelfTest {
         m.add(pcm(480, 0.8), source: .system, at: 0.21)
         let z = m.take(upTo: 9600 + 960) ?? []
         check("Karışım: kapalı kaynak sessiz", z.allSatisfy { $0 == 0 })
+    }
+
+    // ---------------------------------------------------------------- klasör izni
+
+    private static func folders(_ dir: URL) {
+        let ok = dir.appendingPathComponent("yazilir", isDirectory: true)
+        let locked = dir.appendingPathComponent("kilitli", isDirectory: true)
+        try? FileManager.default.createDirectory(at: ok, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        chmod(locked.path, 0o555)
+        defer { chmod(locked.path, 0o755) }
+        check("Klasör: yazılabilir klasör geçer", FolderAccess.problem(ok) == nil)
+        check("Klasör: deneme dosyası geride kalmaz", ((try? FileManager.default.contentsOfDirectory(atPath: ok.path)) ?? ["?"]).isEmpty)
+        let p = FolderAccess.problem(locked)
+        check("Klasör: yazılamayan klasör izin uyarısı verir", p?.contains("yazma izni yok") == true, p ?? "nil")
+        let (u, w) = FolderAccess.usable(locked, fallback: ok)
+        check("Klasör: yazılamazsa varsayılan klasöre düşer", u == ok && w != nil)
+        check("Klasör: ikisi de yazılamazsa kayıt yapılmaz", FolderAccess.usable(locked, fallback: locked).0 == nil)
+        check("Klasör: izin hatası tanınır",
+              FolderAccess.isPermissionError(CocoaError(.fileWriteNoPermission))
+                  && FolderAccess.isPermissionError(NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM)))
+                  && !FolderAccess.isPermissionError(CocoaError(.fileWriteOutOfSpace)))
+        do {
+            _ = try GifWriter(url: locked.appendingPathComponent("x.gif"), width: 2, height: 2)
+            check("Klasör: GIF yazılamayan klasörde hata verir", false)
+        } catch {
+            check("Klasör: GIF hatası izin hatası olarak tanınır", FolderAccess.isPermissionError(error), "\(error)")
+        }
     }
 
     // ---------------------------------------------------------------- GIF

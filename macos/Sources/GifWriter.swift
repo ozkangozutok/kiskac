@@ -38,7 +38,7 @@ final class GifWriter {
         prev = [UInt32](repeating: 0, count: width * height)
         cur = prev
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: url.path])
         }
         file = try FileHandle(forWritingTo: url)
 
