@@ -46,7 +46,10 @@ Her platformda aynı bileşenler vardır:
 | Ayarlar | `Util.cs`, `SettingsForm.cs` | `Settings.swift`, `SettingsWindow.swift` | `Settings.cpp`, `SettingsDialog.cpp` |
 | Güncelleme | `Updater.cs` | `Updater.swift` | `Updater.cpp` |
 | Logo ve simgeler | `Logo.cs` | `Logo.swift` | `Logo.cpp` |
-| İç denetimler | `SelfTest.cs` | — | `SelfTest.cpp` |
+| Video kaydı (MP4, GIF, ses) | `ScreenRecorder.cs`, `MediaFoundation.cs`, `AudioRecorder.cs`, `GifSink.cs` | `Recorder.swift` (ScreenCaptureKit, AVAssetWriter), `GifWriter.swift` | — |
+| Kayıt çerçevesi ve kontrol çubuğu | `RecordingUi.cs` | `RecordingUi.swift` | — |
+| Metin tanıma (OCR) | `TextRecognizer.cs` (Windows.Media.Ocr) | `TextRecognizer.swift` (Vision + Türkçe düzeltme) | — |
+| İç denetimler | `SelfTest.cs`, `VideoTest.cs` | `SelfTest.swift` | `SelfTest.cpp` |
 
 ### Tasarım ilkeleri
 
@@ -73,7 +76,7 @@ xcode-select --install   # bir kez
 ./macos/build.sh
 ```
 
-Yerel derleme ad-hoc imzalanır; her derlemede imza değiştiği için macOS ekran kaydı iznini yeniden isteyebilir. Sabit bir imza için: `SIGN_IDENTITY="Apple Development: …" ./macos/build.sh`.
+İmza `macos/Kiskac.entitlements`'taki mikrofon yetkisiyle atılır (hardened runtime onsuz mikrofonu reddeder). Yerel derleme ad-hoc imzalanır; her derlemede imza değiştiği için macOS ekran kaydı iznini yeniden isteyebilir. Sabit bir imza için: `SIGN_IDENTITY="Apple Development: …" ./macos/build.sh`.
 
 ### Linux
 
@@ -93,6 +96,13 @@ Windows ve Linux sürümlerinde gizli bir `--selftest` modu vardır; CI her push
 # Windows: sonuçlar dosyaya yazılır, başarısızlıkta çıkış kodu 1
 $p = Start-Process bin\Kiskac.exe -ArgumentList '--selftest', "$PWD\selftest.log" -Wait -PassThru
 Get-Content selftest.log; $p.ExitCode
+```
+
+```sh
+# macOS: kısayol, kayıt saati, ses karışımı, GIF, MP4 ve Türkçe metin tanıma
+bin/Kiskac.app/Contents/MacOS/Kiskac --selftest selftest.log; echo $?
+# macOS: gerçek ekran kaydı (2 sn MP4 + GIF + tüm ekranlar); ekran kaydı izni yoksa SKIP
+open -n bin/Kiskac.app --args --video-test "$PWD/video-test"
 ```
 
 ```sh
