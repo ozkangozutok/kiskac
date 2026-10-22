@@ -4,7 +4,10 @@ Bu dosya kullanıcıyı etkileyen değişiklikleri listeler. Sürümler [anlamsa
 
 ## Yayınlanmadı
 
+## 1.6.0
+
 - **macOS: ekran videosu, GIF ve metni kopyala.** Windows'taki video kaydı macOS'a geldi: seçim ekranındaki ● (MP4) ya da GIF düğmesi (`V`, `G`), sistem sesi ve mikrofon (çubuktan aç/kapat, kaydırmayla %0–%200 seviye, canlı gösterge), "Hazır" bekleme, 3 sn geri sayım, duraklatma; tam ekran video `⌥⇧⌘2` ile ve menü çubuğundaki "Tam ekran video" alt menüsünden (belirli ekran ya da tüm ekranlar). Kayıt ScreenCaptureKit ile H.264 + AAC olarak yazılır, Kıskaç'ın kendi pencereleri kayda girmez; kayıt sürerken menü çubuğundaki kırmızı simge kaydı durdurur ve çıkışta dosya bitirilir. Metni kopyala (`O`) Apple Vision ile okur; Vision Türkçe bilmediği için Türkçe satırlarda ş, ğ, ı harfleri sistemin Türkçe yazım denetleyicisiyle düzeltilir (yaklaşık). Yeni ayarlar Windows'takiyle aynı. macOS'a gizli `--selftest` ve `--video-test` denetimleri eklendi.
+- **macOS: klasöre yazma izni denetimi.** Ekran görüntüsü ya da video klasörüne (ör. Masaüstü, Belgeler, iCloud, harici disk) yazma izni yoksa açılışta bildirim çıkar, Ayarlar'da klasörün altında uyarı ve "İzin ayarlarını aç" düğmesi görünür. Video, GIF ve sormadan kaydetme bu durumda kaybolmaz; Filmler › Kıskaç ya da Resimler › Kıskaç'a yazılır. Video bildirimine tıklamak dosyayı açar. Menüdeki "Kayıt klasörünü aç" artık "Ekran görüntüsü klasörünü aç".
 - **Windows: metni kopyala (OCR).** Seçim ekranındaki yeni düğme ya da `O` tuşu, seçili alandaki yazıyı okuyup satır düzeniyle panoya kopyalar. Windows'un yerleşik metin tanıması kullanılır (Türkçe karakterler dahil, ek indirme ve internet bağlantısı yok).
 
 ## 1.5.0
