@@ -9,6 +9,8 @@ namespace Kiskac
         public const int WM_KEYDOWN = 0x0100;
         public const int WM_SYSKEYDOWN = 0x0104;
         public const int WM_QUIT = 0x0012;
+        public const int WM_TIMER = 0x0113;
+        public const int WM_APP = 0x8000;
         public const int WM_DPICHANGED = 0x02E0;
         public const int VK_SNAPSHOT = 0x2C;
 
@@ -52,6 +54,12 @@ namespace Kiskac
 
         [DllImport("user32.dll")]
         public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        public static extern UIntPtr SetTimer(IntPtr hWnd, UIntPtr id, uint elapseMs, IntPtr timerProc);
+
+        [DllImport("user32.dll")]
+        public static extern bool KillTimer(IntPtr hWnd, UIntPtr id);
 
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vk);

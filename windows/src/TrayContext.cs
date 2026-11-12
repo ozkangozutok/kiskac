@@ -101,6 +101,8 @@ namespace Kiskac
 
             hook = new KeyboardHook(Settings.HotKey, () => { if (!exiting) invoker.BeginInvoke(new Action(StartCapture)); });
             hook.VideoAction = () => { if (!exiting) invoker.BeginInvoke(new Action(ToggleFullScreenRecording)); };
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
+            SystemEvents.SessionSwitch += OnSessionSwitch;
 
             updater = new Updater(invoker, ExitThread);
             updater.CanInterrupt = () => overlay == null && !capturing && recorder == null;
@@ -239,6 +241,7 @@ namespace Kiskac
             {
                 overlay = null;
                 bmp.Dispose();
+                hook.Reinstall(null); // büyük bellek işinden sonra: kanca düşürüldüyse geri gelsin
                 if (form.RecordFormat.HasValue) StartRecording(form.RecordRegion, form.RecordFormat.Value);
                 if (form.OcrImage != null) CopyTextFrom(form.OcrImage);
             };
@@ -448,6 +451,7 @@ namespace Kiskac
             if (rec != recorder) return;
             recorder = null;
             CloseRecordingUi();
+            hook.Reinstall(null);
             if (exiting) return;
 
             if (error != null)
@@ -466,6 +470,19 @@ namespace Kiskac
             FinishRecordingNow();
         }
 
+        // Uyku ve kilit sonrası Windows klavye kancasını sessizce düşürmüş olabilir.
+        void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+        {
+            if (e.Mode == PowerModes.Resume) hook.Reinstall("uykudan uyanma");
+        }
+
+        void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
+        {
+            if (e.Reason == SessionSwitchReason.SessionUnlock) hook.Reinstall("kilit açıldı");
+            else if (e.Reason == SessionSwitchReason.ConsoleConnect || e.Reason == SessionSwitchReason.RemoteConnect)
+                hook.Reinstall("oturuma bağlanıldı");
+        }
+
         void FinishRecordingNow()
         {
             var rec = recorder;
@@ -478,6 +495,8 @@ namespace Kiskac
         {
             exiting = true;
             SystemEvents.SessionEnding -= OnSessionEnding;
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
             FinishRecordingNow();
             captureEvent.Set();
             hook.Dispose();
